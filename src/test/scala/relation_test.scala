@@ -45,4 +45,43 @@ class RelationTest extends UnitTest {
       .add('A->2, 'B->3)
     assert ((A rename('A->'C) project('C)) == (A project('A) rename('A->'C)))
   }
+
+  val A = new Relation('A, 'B)
+    .add('A->0, 'B->2)
+    .add('A->1, 'B->3)
+  val B = new Relation('A, 'C)
+    .add('A->0, 'C->4)
+    .add('A->1, 'C->3)
+
+  "joins" should "be symmetrical" in {
+    assert ((A join B) == (B join A))
+    assert ((A join dee) == (dee join A))
+    assert ((B join dee) == (dee join B))
+    assert ((A join dum) == (dum join A))
+    assert ((B join dum) == (dum join B))
+  }
+
+  "joins" should "be compliant with theory" in {
+    assert ((A join A) == A)
+    assert ((B join B) == B)
+    assert ((A join dum).size == 0)
+    assert ((B join dum).size == 0)
+    assert ((A join dee) == A)
+    assert ((B join dee) == B)
+  }
+
+  "where" should "work correctly and accept external types" in {
+    assert ((A where {'A :== 1}) == new Relation('A, 'B).add('A->1, 'B->3))
+    assert ((A where {'A :== 0}) == new Relation('A, 'B).add('A->0, 'B->2))
+    assert (((A join B) where {'B :== 'C}) == new Relation('A, 'B, 'C).add('A->1, 'B->3, 'C->3))
+
+    val C = new Relation('A).add('A->A)
+    assert ((C where {'A :== A}) == C)
+  }
+
+  "extend" should "do the basic job" in {
+    assert ((A.extend('C, 'D){'C := 'A;'D := 'B} project('C, 'D) rename('C as 'A, 'D as 'B)) == A)
+    assert ((B.extend('B, 'D){'B := 'A;'D := 'C} project('B, 'D) rename('B as 'A, 'D as 'C)) == B)
+    assert (A.extend(){} == A)
+  }
 }
