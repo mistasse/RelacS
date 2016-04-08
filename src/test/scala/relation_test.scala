@@ -80,6 +80,7 @@ class RelationTest extends UnitTest {
   }
 
   "extend" should "do the basic job" in {
+    assert (A.extend('C){'C := "youpie"}.header == Seq('A, 'B, 'C))
     assert ((A.extend('C, 'D){'C := 'A;'D := 'B} project('C, 'D) rename('C as 'A, 'D as 'B)) == A)
     assert ((B.extend('B, 'D){'B := 'A;'D := 'C} project('B, 'D) rename('B as 'A, 'D as 'C)) == B)
     assert (A.extend(){} == A)

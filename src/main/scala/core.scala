@@ -1,3 +1,5 @@
+import java.util.function.Supplier
+
 import scala.collection.mutable.HashSet
 import scala.language.experimental.macros
 import scala.collection.mutable.HashMap
@@ -47,9 +49,21 @@ class Environment(var rel: Relation, var record: Option[Array[RelValue[_]]], val
   val positions = params.groupBy(_._1).mapValues{case Seq(p)=>p._2}
 }
 
-class Ref[T](var obj: T) {
+abstract class Ref[T] {
+  def get: T
+  def set(n: T): Unit
+}
+
+class SimpleRef[T](var obj: T) extends Ref[T] {
   def get = obj
   def set(n: T) = obj = n
+}
+
+class ThreadSafeRef[T](obj: =>T) extends Ref[T] {
+  val local = ThreadLocal.withInitial(new Supplier[T] {def get = obj})
+
+  override def get = local.get()
+  override def set(n: T) = local.set(n)
 }
 
 class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashSet[Seq[RelValue[_]]], var frozen: Boolean) {
@@ -73,10 +87,15 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
       records = records.clone()
       frozen = false
     }
-    records += record
+    addAndCheckConstraints(record)
     return this
   }
 
+  def addAndCheckConstraints(record: Seq[RelValue[_]]): Relation = {
+    // TODO
+    records.add(record)
+    return this
+  }
 
   /**
     * Join
@@ -162,7 +181,7 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
       Array.copy(record.toArray, 0, new_record, 0, record.length)
       env.record = Some(new_record)
       f
-      ret.records += env.record.get
+      ret.addAndCheckConstraints(env.record.get)
     }
 
     renv.set(previous_env)

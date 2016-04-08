@@ -35,7 +35,7 @@ object min {
 }
 
 trait RelEnv {
-  implicit val renv: Ref[Environment] = new Ref[Environment](new Environment())
+  implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment())
 
   implicit def Sym2RelValue(a: Symbol)(implicit renv: Ref[Environment]): RelValue[_] = renv.get.record.get(renv.get.rel.offsets(a))
   implicit def Sym2Identifier(a: Symbol): Identifier = new Identifier(a)
