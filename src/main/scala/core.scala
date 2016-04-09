@@ -44,8 +44,8 @@ class Identifier(sym: Symbol) {
 object dum extends Relation()
 object dee extends Relation() { add() }
 
-class Environment(var rel: Relation, var record: Option[Array[RelValue[_]]], val params: (Symbol, Int)*) {
-  def this() = this(dee, None)
+class Environment(val rel: Relation, var record: Option[Array[RelValue[_]]], var params: Seq[(Symbol, Int)]) {
+  def this() = this(dee, None, Nil)
   val positions = params.groupBy(_._1).mapValues{case Seq(p)=>p._2}
 }
 
@@ -149,7 +149,7 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     val ret = new Relation(header, offsets)
     val previous_env = renv.get
 
-    val env = new Environment(this, None)
+    val env = new Environment(this, None, Nil)
     renv.set(env)
 
     for(record <- this.records) {
@@ -173,7 +173,7 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     val ret = new Relation(header:_*)
 
     val previous_env = renv.get
-    val env = new Environment(this, None, (0 until added.length).map(i => (added(i), i+arity)):_*)
+    val env = new Environment(this, None, (0 until added.length).map(i => (added(i), i+arity)))
     renv.set(env)
 
     for(record <- this.records) {

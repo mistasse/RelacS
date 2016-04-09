@@ -80,9 +80,28 @@ class RelationTest extends UnitTest {
   }
 
   "extend" should "do the basic job" in {
-    assert (A.extend('C){'C := "youpie"}.header == Seq('A, 'B, 'C))
+    assert (A.extend('C){'C := ""}.header == Seq('A, 'B, 'C))
     assert ((A.extend('C, 'D){'C := 'A;'D := 'B} project('C, 'D) rename('C as 'A, 'D as 'B)) == A)
     assert ((B.extend('B, 'D){'B := 'A;'D := 'C} project('B, 'D) rename('B as 'A, 'D as 'C)) == B)
     assert (A.extend(){} == A)
+    assert ((
+      A
+        .extend('C, 'D, 'maxA, 'minA) {
+          'C := 'A
+          'D := 'B
+          'maxA := max('A)
+          'minA := min('A)
+        }
+        join new Relation('dupID).add('dupID->0).add('dupID->1)
+        where{
+          ('C :== 'A) &&
+            ('D :== 'B) &&
+            ('maxA :== max(A, 'A)) &&
+            ('minA :== min(A, 'A)) &&
+            ('dupID :== 0)
+        }
+        project('C, 'D)
+        rename('C as 'A, 'D as 'B)
+      ) == A)
   }
 }
