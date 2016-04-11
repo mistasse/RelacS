@@ -8,28 +8,28 @@ import scala.collection.mutable
 
 
 abstract class RelValue[T](val wrapped: T) {
-  def :==(other: RelValue[_]): RelValue[_] = {
+  def ==(other: RelValue[_]): RelValue[_] = {
     return BooleanValue(wrapped.equals(other.wrapped))
   }
 
-  def :<>(other: RelValue[_]): RelValue[_] = {
+  def <>(other: RelValue[_]): RelValue[_] = {
     return BooleanValue(!wrapped.equals(other.wrapped))
   }
 
-  def :+(other: RelValue[_]): RelValue[_] = {
-    throw new RuntimeException(":+ not implemented on "+getClass.getName)
+  def +(other: RelValue[_]): RelValue[_] = {
+    throw new RuntimeException("+ not implemented on "+getClass.getName)
   }
 
-  def :-(other: RelValue[_]): RelValue[_] = {
-    throw new RuntimeException(":- not implemented on "+getClass.getName)
+  def -(other: RelValue[_]): RelValue[_] = {
+    throw new RuntimeException("- not implemented on "+getClass.getName)
   }
 
-  def :*(other: RelValue[_]): RelValue[_] = {
-    throw new RuntimeException(":* not implemented on "+getClass.getName)
+  def *(other: RelValue[_]): RelValue[_] = {
+    throw new RuntimeException("* not implemented on "+getClass.getName)
   }
 
-  def :/(other: RelValue[_]): RelValue[_] = {
-    throw new RuntimeException(":/ not implemented on "+getClass.getName)
+  def /(other: RelValue[_]): RelValue[_] = {
+    throw new RuntimeException("/ not implemented on "+getClass.getName)
   }
 
   def &&(other: RelValue[_]): RelValue[_] = {
@@ -40,13 +40,13 @@ abstract class RelValue[T](val wrapped: T) {
     throw new RuntimeException("|| not implemented on "+getClass.getName)
   }
 
-  def :<(other: RelValue[_]): RelValue[_] = {
-    throw new RuntimeException(":< not implemented on "+getClass.getName)
+  def <(other: RelValue[_]): RelValue[_] = {
+    throw new RuntimeException("< not implemented on "+getClass.getName)
   }
 
-  def :<=(other: RelValue[_]): RelValue[_] = BooleanValue(this.:<(other) == BooleanValue.TRUE || this.:==(other) == BooleanValue.TRUE)
-  def :>(other: RelValue[_]): RelValue[_] = !BooleanValue(this.:<=(other) == BooleanValue.TRUE)
-  def :>=(other: RelValue[_]): RelValue[_] = !BooleanValue(this.:<(other) == BooleanValue.TRUE)
+  def <=(other: RelValue[_]): RelValue[_] = BooleanValue((this.<(other) equals BooleanValue.TRUE) || (this.==(other) equals BooleanValue.TRUE))
+  def >(other: RelValue[_]): RelValue[_] = !BooleanValue(this.<=(other) equals BooleanValue.TRUE)
+  def >=(other: RelValue[_]): RelValue[_] = !BooleanValue(this.<(other) equals BooleanValue.TRUE)
 
 
   /**
@@ -91,7 +91,7 @@ class RelationValue(wrapped: Relation) extends RelValue[Relation](wrapped) {
 }
 
 object ExtensibleValue {
-  val handledOps = Seq(":+", ":-", ":*", ":/", "&&", "||", ":<")
+  val handledOps = Seq("+", "-", "*", "/", "&&", "||", "<")
   def initMap[T](): mutable.HashMap[String, mutable.HashMap[Class[_ <: RelValue[_]], (T, RelValue[_])=>RelValue[_]]] = {
     val ret = new mutable.HashMap[String, mutable.HashMap[Class[_ <: RelValue[_]], (T, RelValue[_])=>RelValue[_]]]();
     for(op <- handledOps) {
@@ -106,13 +106,13 @@ abstract class ExtensibleValue[T](wrapped:T) extends RelValue[T](wrapped) {
 
   @inline def find_op(op: String, klass: Class[_ <: RelValue[_]]): (T, RelValue[_])=>RelValue[_] = ops(op)(klass)
 
-  override def :+(other: RelValue[_]): RelValue[_] = find_op(":+", other.getClass)(this.wrapped, other)
-  override def :-(other: RelValue[_]): RelValue[_] = find_op(":-", other.getClass)(this.wrapped, other)
-  override def :*(other: RelValue[_]): RelValue[_] = find_op(":*", other.getClass)(this.wrapped, other)
-  override def :/(other: RelValue[_]): RelValue[_] = find_op(":/", other.getClass)(this.wrapped, other)
+  override def +(other: RelValue[_]): RelValue[_] = find_op("+", other.getClass)(this.wrapped, other)
+  override def -(other: RelValue[_]): RelValue[_] = find_op("-", other.getClass)(this.wrapped, other)
+  override def *(other: RelValue[_]): RelValue[_] = find_op("*", other.getClass)(this.wrapped, other)
+  override def /(other: RelValue[_]): RelValue[_] = find_op("/", other.getClass)(this.wrapped, other)
   override def &&(other: RelValue[_]): RelValue[_] = find_op("&&", other.getClass)(this.wrapped, other)
   override def ||(other: RelValue[_]): RelValue[_] = find_op("||", other.getClass)(this.wrapped, other)
-  override def :<(other: RelValue[_]): RelValue[_] = find_op(":<", other.getClass)(this.wrapped, other)
+  override def <(other: RelValue[_]): RelValue[_] = find_op("<", other.getClass)(this.wrapped, other)
 }
 
 object IntValue {

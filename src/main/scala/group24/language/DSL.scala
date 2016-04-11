@@ -1,6 +1,5 @@
 package group24.language
 
-import group24._
 import group24.library._
 
 import scala.collection.mutable
@@ -12,6 +11,15 @@ import scala.collection.mutable
 object Types {
   type Evaluated = (Seq[RelValue[_]])=>RelValue[_]
   type Record = Seq[RelValue[_]]
+}
+
+trait RequestWrapper {
+  def :==(other: Types.Evaluated): Types.Evaluated
+  def :<(other: Types.Evaluated): Types.Evaluated
+  def :<=(other: Types.Evaluated): Types.Evaluated
+  def :>(other: Types.Evaluated): Types.Evaluated
+  def :>=(other: Types.Evaluated): Types.Evaluated
+  def :>=(other: Types.Evaluated): Types.Evaluated
 }
 
 class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Types.Evaluated {
@@ -26,15 +34,15 @@ class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Types.Eva
 
   def apply(rec: Seq[RelValue[_]]): RelValue[_] = rec(idx)
 
-  def :==(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :== other(rec)
-  def :<(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :< other(rec)
-  def :<=(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :<= other(rec)
-  def :>(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :> other(rec)
-  def :>=(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :>= other(rec)
-  def :+(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :+ other(rec)
-  def :-(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :- other(rec)
-  def :*(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :* other(rec)
-  def :/(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :/ other(rec)
+  def :==(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) == other(rec)
+  def :<(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) < other(rec)
+  def :<=(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) <= other(rec)
+  def :>(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) > other(rec)
+  def :>=(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) >= other(rec)
+  def :+(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) + other(rec)
+  def :-(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) - other(rec)
+  def :*(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) * other(rec)
+  def :/(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) / other(rec)
   def &&(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) && other(rec)
   def ||(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) || other(rec)
 
@@ -43,6 +51,22 @@ class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Types.Eva
   def as(other: Symbol): (Symbol, Symbol) = {
     return (sym, other)
   }
+}
+
+class RelValueWrapper(val value: RelValue[_]) extends Types.Evaluated {
+  def apply(rec: Types.Record): RelValue[_] = value
+
+  def :==(other: Types.Evaluated): Types.Evaluated = (rec) => value == other(rec)
+  def :<(other: Types.Evaluated): Types.Evaluated = (rec) => value < other(rec)
+  def :<=(other: Types.Evaluated): Types.Evaluated = (rec) => value <= other(rec)
+  def :>(other: Types.Evaluated): Types.Evaluated = (rec) => value > other(rec)
+  def :>=(other: Types.Evaluated): Types.Evaluated = (rec) => value >= other(rec)
+  def :+(other: Types.Evaluated): Types.Evaluated = (rec) => value + other(rec)
+  def :-(other: Types.Evaluated): Types.Evaluated = (rec) => value - other(rec)
+  def :*(other: Types.Evaluated): Types.Evaluated = (rec) => value * other(rec)
+  def :/(other: Types.Evaluated): Types.Evaluated = (rec) => value / other(rec)
+  def &&(other: Types.Evaluated): Types.Evaluated = (rec) => value && other(rec)
+  def ||(other: Types.Evaluated): Types.Evaluated = (rec) => value || other(rec)
 }
 
 class Environment(val offsets: Offsets) {
@@ -122,37 +146,37 @@ trait RelEnv {
   implicit def Rel2RelValue(a: Relation): RelValue[_] = new RelationValue(a)
   implicit def SymRel2RelValue(a: (Symbol, Relation)): (Symbol, RelValue[_]) = (a._1, new RelationValue(a._2))
 
-  implicit def String2Evaluated(a: String): Types.Evaluated = (rec: Types.Record) => a
+  implicit def String2Evaluated(a: String): RelValueWrapper = new RelValueWrapper(StringValue(a))
   implicit def String2RelValue(a: String): RelValue[_] = StringValue(a)
   implicit def SymString2RelValue(a: (Symbol, String)): (Symbol, RelValue[_]) = (a._1, StringValue(a._2))
 
-  implicit def Int2Evaluated(a: Int): Types.Evaluated = (rec: Types.Record) => a
+  implicit def Int2Evaluated(a: Int): RelValueWrapper = new RelValueWrapper(IntValue(a))
   implicit def Int2RelValue(a: Int): RelValue[_] = IntValue(a)
   implicit def SymInt2RelValue(a: (Symbol, Int)): (Symbol, RelValue[_]) = (a._1, IntValue(a._2))
 
-  implicit def Boolean2Evaluated(a: Boolean): Types.Evaluated = (rec: Types.Record) => a
+  implicit def Boolean2Evaluated(a: Boolean): RelValueWrapper = new RelValueWrapper(BooleanValue(a))
   implicit def Bool2RelValue(a: Boolean): RelValue[_] = BooleanValue(a)
   implicit def SymBool2RelValue(a: (Symbol, Boolean)): (Symbol, RelValue[_]) = (a._1, BooleanValue(a._2))
 
-  IntValue.ops(":+")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
+  IntValue.ops("+")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
     IntValue(a + b.asInstanceOf[IntValue].wrapped)
   }
-  IntValue.ops(":-")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
+  IntValue.ops("-")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
     IntValue(a - b.asInstanceOf[IntValue].wrapped)
   }
-  IntValue.ops(":*")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
+  IntValue.ops("*")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
     IntValue(a * b.asInstanceOf[IntValue].wrapped)
   }
-  IntValue.ops(":/")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
+  IntValue.ops("/")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
     IntValue(a / b.asInstanceOf[IntValue].wrapped)
   }
-  IntValue.ops(":<")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
+  IntValue.ops("<")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
     BooleanValue(a < b.asInstanceOf[IntValue].wrapped)
   }
-  StringValue.ops(":<")(classOf[StringValue]) = (a: String, b: RelValue[_]) => {
+  StringValue.ops("<")(classOf[StringValue]) = (a: String, b: RelValue[_]) => {
     BooleanValue(a.compareTo(b.asInstanceOf[StringValue].wrapped) < 0)
   }
-  StringValue.ops(":+")(classOf[StringValue]) = (a: String, b: RelValue[_]) => {
+  StringValue.ops("+")(classOf[StringValue]) = (a: String, b: RelValue[_]) => {
     StringValue(a + b.asInstanceOf[StringValue].wrapped)
   }
   BooleanValue.ops("&&")(classOf[BooleanValue]) = (a: Boolean, b: RelValue[_]) => {
@@ -203,7 +227,7 @@ object main extends RelEnv {
       .add('id->1, 'points->10)
       .add('id->2, 'points->15)
 
-    println(students.EXTEND('ok, 'xD)('ok := 'id, 'xD := 3))
+    println(students.EXTEND('ok, 'xD)('ok := 3 :+ 3, 'xD := 3))
 
   /*
     println(
