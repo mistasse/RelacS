@@ -6,6 +6,7 @@ import scala.collection.mutable
 
 object max {
   def apply(attribute: Symbol)(implicit renv: Ref[Environment]): RelValue[_] = apply(renv.get.rel, attribute)
+  def apply(rel: RelValue[_], attribute: Symbol)(implicit renv: Ref[Environment]): RelValue[_] = apply(rel.asInstanceOf[RelationValue].wrapped, attribute)
   def apply(rel: Relation, attribute: Symbol): RelValue[_] = {
     var max: Option[RelValue[_]] = None
     for(record <- rel.records) {
@@ -21,6 +22,7 @@ object max {
 
 object min {
   def apply(attribute: Symbol)(implicit renv: Ref[Environment]): RelValue[_] = apply(renv.get.rel, attribute)
+  def apply(rel: RelValue[_], attribute: Symbol)(implicit renv: Ref[Environment]): RelValue[_] = apply(rel.asInstanceOf[RelationValue].wrapped, attribute)
   def apply(rel: Relation, attribute: Symbol): RelValue[_] = {
     var min: Option[RelValue[_]] = None
     for(record <- rel.records) {
