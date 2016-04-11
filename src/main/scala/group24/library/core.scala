@@ -2,8 +2,6 @@ package group24.library
 
 import java.util.function.Supplier
 
-import group24.library.RelValue
-
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.HashMap
 
@@ -100,7 +98,7 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
 
     for(record_a <- this.records) {
       for(record_b <- other.records) {
-        if(common.forall(h => record_a(this.offsets(h)) == record_b(other.offsets(h)))) {
+        if(common.forall(h => record_a(this.offsets(h)) equals record_b(other.offsets(h)))) {
           val mixed = record_a ++ kept.map(i => record_b(i))
           ret.records.add(mixed)
         }

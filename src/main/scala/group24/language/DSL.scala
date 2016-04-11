@@ -1,6 +1,6 @@
 package group24.language
 
-import group24.library._
+import group24.library.{Relation => RRelation, _}
 
 import scala.collection.mutable
 
@@ -9,28 +9,31 @@ import scala.collection.mutable
   */
 
 object Types {
+  /**
+    * Evaluated is
+    */
   type Evaluated = (Seq[RelValue[_]])=>RelValue[_]
+  /**
+    * Record is the format of a tuple in a relation
+    */
   type Record = Seq[RelValue[_]]
+  /**
+    * MutableRecord are used just when extending relations
+    */
+  type MutableRecord = Array[RelValue[_]]
 }
 
-trait RequestWrapper {
-  def :==(other: Types.Evaluated): Types.Evaluated
-  def :<(other: Types.Evaluated): Types.Evaluated
-  def :<=(other: Types.Evaluated): Types.Evaluated
-  def :>(other: Types.Evaluated): Types.Evaluated
-  def :>=(other: Types.Evaluated): Types.Evaluated
-  def :>=(other: Types.Evaluated): Types.Evaluated
-}
+class Assignment(val sym: Symbol, val clos: (Types.MutableRecord)=>Unit)
 
 class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Types.Evaluated {
 
-  def :=(other: Types.Evaluated): (Array[RelValue[_]])=>Unit = {
-    return (rec: Array[RelValue[_]]) => {
+  def :=(other: Types.Evaluated): Assignment = {
+    new Assignment(sym, (rec: Array[RelValue[_]]) => {
       rec(renv.get.offsets(sym)) = other(rec)
-    }
+    })
   }
 
-  def idx: Int = renv.get.offsets(sym)
+  @inline def idx: Int = renv.get.offsets(sym)
 
   def apply(rec: Seq[RelValue[_]]): RelValue[_] = rec(idx)
 
@@ -45,12 +48,6 @@ class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Types.Eva
   def :/(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) / other(rec)
   def &&(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) && other(rec)
   def ||(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) || other(rec)
-
-  def JOIN(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) join other(rec)
-
-  def as(other: Symbol): (Symbol, Symbol) = {
-    return (sym, other)
-  }
 }
 
 class RelValueWrapper(val value: RelValue[_]) extends Types.Evaluated {
@@ -73,18 +70,20 @@ class Environment(val offsets: Offsets) {
   def this() = this(null)
 }
 
-object REL {
-  def apply(rel: Relation): REL = new REL(rel)
+object RELATION {
+  def apply(rel: RRelation): RRelation = rel
+  def apply(syms: Symbol*): RRelation = new RRelation(syms:_*)
 }
 
-class REL(val rel: Relation) {
-  def this(syms: Symbol*) = this(new Relation(syms:_*))
-  def &(values: RelValue[_]*): Relation = {
+class RELATION(val rel: RRelation) {
+  def &(values: RelValue[_]*): RRelation = {
     rel.addAndCheckConstraints(values)
     return rel
   }
 
-  def WHERE(bool: Types.Evaluated)(implicit renv: Ref[Environment]): Relation = {
+  def JOIN(other: RRelation): RRelation = rel.join(other)
+
+  def WHERE(bool: Types.Evaluated)(implicit renv: Ref[Environment]): RRelation = {
     val previous_env = renv.get
     renv.set(new Environment(rel.offsets))
     val ret = rel.where(bool)
@@ -92,10 +91,12 @@ class REL(val rel: Relation) {
     return ret
   }
 
-  def EXTEND(syms: Symbol*)(closures: ((Array[RelValue[_]])=>Unit)*)(implicit renv: Ref[Environment]): Relation = {
+  def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): RRelation = {
     val previous_env = renv.get
+    val syms = assignments.map(_.sym)
+    val fcts = assignments.map(_.clos)
     renv.set(new Environment(new Offsets(rel.header ++ syms)))
-    val ret = rel.extend(syms:_*)((rec) => closures.foreach(c => c(rec)))
+    val ret = rel.extend(syms:_*)((rec) => fcts.foreach(fct => fct(rec)))
     renv.set(previous_env)
     return ret
   }
@@ -141,10 +142,10 @@ trait RelEnv {
 
   implicit def Sym2Identifier(a: Symbol)(implicit renv: Ref[Environment]): Identifier = new Identifier(a)
 
-  implicit def Rel2RELATION(a: Relation): REL = REL(a)
-  implicit def Rel2Evaluated(a: Relation): Types.Evaluated = (rec: Types.Record) => a
-  implicit def Rel2RelValue(a: Relation): RelValue[_] = new RelationValue(a)
-  implicit def SymRel2RelValue(a: (Symbol, Relation)): (Symbol, RelValue[_]) = (a._1, new RelationValue(a._2))
+  implicit def Rel2RELATION(a: RRelation): RELATION = new RELATION(a)
+  implicit def Rel2Evaluated(a: RRelation): Types.Evaluated = (rec: Types.Record) => a
+  implicit def Rel2RelValue(a: RRelation): RelValue[_] = new RelationValue(a)
+  implicit def SymRel2RelValue(a: (Symbol, RRelation)): (Symbol, RelValue[_]) = (a._1, new RelationValue(a._2))
 
   implicit def String2Evaluated(a: String): RelValueWrapper = new RelValueWrapper(StringValue(a))
   implicit def String2RelValue(a: String): RelValue[_] = StringValue(a)
@@ -193,14 +194,6 @@ object main extends RelEnv {
   //implicit def TupleSymFct2TupleStrFct(a: (Symbol, (Any)=>Any)): (String, (Any)=>Boolean) = (a._1.toString(), a._2.asInstanceOf[(Any)=>Boolean])
 
   def main(args: Array[String]) {
-    val A = new Relation('id, 'fname)
-      .add('id-> 0, 'fname-> "Maxime")
-      .add('id-> 1, 'fname-> "Jérôme")
-      .add('id-> 1, 'fname-> "Jérôme") // removed
-
-    val B = new Relation('id, 'lname)
-      .add('id-> 0, 'lname-> "Istasse")
-      .add('id-> 1, 'lname-> "Lemaire")
 
     /*println(A.join(B).extend('id, 'lname)('hashfname, 'hashlname, 'product){
       (fname:Int, lname: String) => {Seq(
@@ -217,18 +210,24 @@ object main extends RelEnv {
     )*/
     //println('hash := 'ok)
 
-    val students = new Relation('id, 'name, 'surname)
-      .add('id->0, 'name->"Jérôme", 'surname->"Lemaire")
-      .add('id->1, 'name->"Maxime", 'surname->"Istasse")
-      .add('id->2, 'name->"Charles", 'surname->"Jacquet")
+    val student =
+      RELATION('id, 'name, 'surname) &
+        (0, "Maxime", "Istasse") &
+        (1, "Jérôme", "Lemaire") &
+        (2, "Léonard", "Julémont")
 
-    val midterm = new Relation('id, 'points)
-      .add('id->0, 'points->20)
-      .add('id->1, 'points->10)
-      .add('id->2, 'points->15)
+    val grades =
+      RELATION('id, 'points) &
+        (0, 15) &
+        (1, 20)
 
-    println(students.EXTEND('ok, 'xD)('ok := 3 :+ 3, 'xD := 3))
-
+    println(
+      (student JOIN grades)
+      EXTEND(
+        'winner := ('points :== 20),
+        'looser := ('points :< 20)
+      )
+    )
   /*
     println(
       (students join midterm)
