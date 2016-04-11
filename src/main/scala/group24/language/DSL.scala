@@ -18,16 +18,60 @@ class RenameAs(a: Symbol) {
 }
 
 object RELATION {
+  /**
+    * Allows to write RELATION('header1, header2)
+    */
   def apply(syms: Symbol*): RRelation = new RRelation(syms:_*)
+
+  /**
+    * Factorized code for contextualized WHERE
+    */
+  def WHERE(rel: RRelation, bool: Evaluated*)(implicit renv: Ref[Environment]): RRelation = {
+    val previous_env = renv.get
+    renv.set(new Environment(rel.offsets))
+    val ret = rel.where(bool:_*)
+    renv.set(previous_env)
+    return ret
+  }
+
+  /**
+    * Factorized code for contextualized EXTEND
+    */
+  def EXTEND(rel: RRelation, assignments: Assignment*)(implicit renv: Ref[Environment]): RRelation = {
+    val previous_env = renv.get
+    val syms = assignments.map(_.sym)
+    val fcts = assignments.map(_.clos)
+    renv.set(new Environment(new Offsets(rel.header ++ syms)))
+    val ret = rel.extend(syms:_*)((rec) => fcts.foreach(fct => fct(rec)))
+    renv.set(previous_env)
+    return ret
+  }
 }
 
+/**
+  * Allows to use caps in the main parts of the program, or static parts of closures
+  * E.G:
+  * EXTEND(
+  *   'ok := RELATION('hey) & (3)
+  * )
+  */
 class RELATION(val rel: RRelation) {
 
+  /**
+    * Static, preferred since more specific
+    */
   def &(values: RelValueWrapper*): RRelation = {
     rel.addAndCheckConstraints(values.map(_.wrapped))
     return rel
   }
 
+  /**
+    * Allows to add dynamic fields
+    * E.G:
+    * EXTEND(
+    *   'ok := RELATION('hey) & ('existingField)
+    * )
+    */
   def &(values: Evaluated*): Evaluated = {
     new ClosureEvaluated((rec: Record) => {
       val evaluated = values.map(_(rec))
@@ -39,32 +83,22 @@ class RELATION(val rel: RRelation) {
   def RENAME(renamings: (Symbol, Symbol)*): RRelation = rel.rename(renamings:_*)
   def PROJECT(keep: Symbol*): RRelation = rel.project(keep:_*)
 
-  def WHERE(bool: Evaluated*)(implicit renv: Ref[Environment]): RRelation = {
-    val previous_env = renv.get
-    renv.set(new Environment(rel.offsets))
-    val ret = rel.where(bool:_*)
-    renv.set(previous_env)
-    return ret
-  }
-
-  def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): RRelation = {
-    val previous_env = renv.get
-    val syms = assignments.map(_.sym)
-    val fcts = assignments.map(_.clos)
-    renv.set(new Environment(new Offsets(rel.header ++ syms)))
-    val ret = rel.extend(syms:_*)((rec) => fcts.foreach(fct => fct(rec)))
-    renv.set(previous_env)
-    return ret
-  }
-
-  def SHOW(): Unit = {
-    println(rel)
-  }
-
+  def WHERE(bool: Evaluated*)(implicit renv: Ref[Environment]): RRelation = RELATION.WHERE(rel, bool:_*)
+  def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): RRelation = RELATION.EXTEND(rel, assignments:_*)
 }
 
+/**
+  * Allows to use caps within expressions
+  */
 class RELATIONEval(val wrapped: Evaluated) extends Evaluated {
   def apply(rec: Record): RelValue[_] = wrapped(rec)
+
+  def &(values: Evaluated*): Evaluated = {
+    new ClosureEvaluated((rec: Record) => {
+      val evaluated = values.map(_ (rec))
+      new RelationValue(this (rec).join(new RelationValue(dee)).wrapped.asInstanceOf[RRelation].addAndCheckConstraints(evaluated))
+    })
+  }
 
   def JOIN(other: Evaluated): Evaluated = wrapped join other
   def RENAME(renamings: (Symbol, Symbol)*): Evaluated = wrapped rename(renamings:_*)
@@ -77,21 +111,24 @@ class RELATIONEval(val wrapped: Evaluated) extends Evaluated {
 trait RelEnv {
   implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment())
 
+  // Allows creating identifiers linked to the current Environment Reference for further evaluation
   implicit def Sym2Identifier(a: Symbol)(implicit renv: Ref[Environment]): Identifier = new Identifier(a)
   implicit def SymbolAsSymbol(a: Symbol): RenameAs = new RenameAs(a)
 
-  implicit def SymRel2RelValue(a: (Symbol, RRelation)): (Symbol, RelValue[_]) = (a._1, new RelationValue(a._2))
-  implicit def Rel2Evaluated(a: RRelation): Evaluated = new RelValueWrapper(new RelationValue(a))
-  implicit def Rel2RELATION(a: RRelation): RELATION = new RELATION(a)
+  // The trickiest part: Why only those? And all those ones?
+  // 1) Here, we allow syntactic sugar
+  implicit def Rel2aRELATION(a: RRelation): RELATION = new RELATION(a)
+  // 2) Within some blocks, we want to do EXTEND('x := RELATION(...))
+  implicit def Rel2Evaluated(a: RRelation): RelValueWrapper = new RelValueWrapper(new RelationValue(a))
+  // 3) Here, we allow the inner relations to accept more operators, ... while keeping the same syntax
   implicit def Evaluated2RELATIONEval(a: Evaluated): RELATIONEval = new RELATIONEval(a)
+  // Notice: We had to have Evaluated's method in lowercase, because otherwise, there were conflicts implicit conversions
+  // at the top level(Relation could either be caster to Evaluated or RELATION). This is a nice trick to allow the same
+  // syntax!
 
-  implicit def SymString2RelValue(a: (Symbol, String)): (Symbol, RelValue[_]) = (a._1, StringValue(a._2))
+  // Obvious here!
   implicit def String2Evaluated(a: String): RelValueWrapper = new RelValueWrapper(StringValue(a))
-
-  implicit def SymInt2RelValue(a: (Symbol, Int)): (Symbol, RelValue[_]) = (a._1, IntValue(a._2))
   implicit def Int2Evaluated(a: Int): RelValueWrapper = new RelValueWrapper(IntValue(a))
-
-  implicit def SymBool2RelValue(a: (Symbol, Boolean)): (Symbol, RelValue[_]) = (a._1, BooleanValue(a._2))
   implicit def Boolean2Evaluated(a: Boolean): RelValueWrapper = new RelValueWrapper(BooleanValue(a))
 
   IntValue.ops("+")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
@@ -124,27 +161,8 @@ trait RelEnv {
 }
 
 object main extends RelEnv {
-  println("xD")
-  //implicit def Symbol2String(a: Symbol):String = a.toString()
-  //implicit def TupleSym2TupleStr(a: (Symbol, Any)): (String, Any) = (a._1.toString(), a._2)
-  //implicit def TupleSymFct2TupleStrFct(a: (Symbol, (Any)=>Any)): (String, (Any)=>Boolean) = (a._1.toString(), a._2.asInstanceOf[(Any)=>Boolean])
 
   def main(args: Array[String]) {
-
-    /*println(A.join(B).extend('id, 'lname)('hashfname, 'hashlname, 'product){
-      (fname:Int, lname: String) => {Seq(
-        fname.hashCode,
-        lname.hashCode,
-        fname.hashCode*lname.hashCode
-      )}}
-    )
-    println(
-      A.join(B).extend('id, 'lname)('hash){
-        (id:Int, lname: String) => {Seq(
-          3
-        )}}.project('hash).rename('hash -> 'lol)
-    )*/
-    //println('hash := 'ok)
 
     val student =
       RELATION('id, 'name, 'surname) &
@@ -163,36 +181,7 @@ object main extends RelEnv {
         'winner := ('points :== 20),
         'looser := ('points :< 20)
         )
-      EXTEND (
-        'winning := RELATION('win, 'lose) WHERE('win :== true) RENAME('win as 'lol) EXTEND(),
-        'bitch := 3 :+ 5
-        )
-      WHERE(
-        'bitch :== 8
-        )
 
-      ) SHOW
-  /*
-    println(
-      (students join midterm)
-        .extend('normal) {
-          'normal := ('points :<> max('points)) && ('points :<> min('points))
-        }
-        where {'points :< max('points)}
-        project ('id, 'name, 'surname)
-        rename('name as 'prénom,'surname as 'nom)
     )
-
-    println(new Relation('A, 'B)
-        .add('A->new Relation('id, 'name).add('id->0, 'name->"Maxime").add('id->1, 'name->"Jérôme"),
-              'B->new Relation('id, 'surname).add('id->0, 'surname->"Istasse").add('id->1, 'surname->"Lemaire"))
-        .extend('join){
-          'join := ('A join 'B).extend('concat){
-            'concat := 'name :+ ">>>" :+ 'surname
-          }
-        }
-    )
-    println(dum == dee)
-    */
   }
 }

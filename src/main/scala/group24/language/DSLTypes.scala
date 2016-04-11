@@ -49,13 +49,13 @@ trait Evaluated extends Types.Evaluated {
   def where(conditions: Evaluated*)(implicit renv: Ref[Environment]): Evaluated = {
     CE((rec) => {
       val rel = this(rec).asInstanceOf[RelationValue].wrapped
-      new RelationValue(new RELATION(rel) WHERE(conditions:_*))
+      new RelationValue(RELATION.WHERE(rel, conditions:_*))
     })
   }
   def extend(assignments: Assignment*)(implicit renv: Ref[Environment]): Evaluated = {
     CE((rec) => {
       val rel = this(rec).asInstanceOf[RelationValue].wrapped
-      new RelationValue(new RELATION(rel) EXTEND(assignments:_*))
+      new RelationValue(RELATION.EXTEND(rel, assignments:_*))
     })
   }
 }

@@ -63,18 +63,6 @@ abstract class RelValue[T](val wrapped: T) {
     throw new RuntimeException("join not implemented on "+getClass.getName)
   }
 
-  def join(other: Relation): RelValue[_] = {
-    throw new RuntimeException("join not implemented on "+getClass.getName)
-  }
-
-  def where(f: (Seq[RelValue[_]]=>RelValue[_])*): RelValue[_] = {
-    throw new RuntimeException("where not implemented on "+getClass.getName)
-  }
-
-  def extend(added: Symbol*)(f: (Array[RelValue[_]]=>Unit)): RelValue[_] = {
-    throw new RuntimeException("where not implemented on "+getClass.getName)
-  }
-
   override def toString(): String = wrapped.toString()
 
   override def hashCode(): Int = wrapped.hashCode()
@@ -91,15 +79,6 @@ class RelationValue(wrapped: Relation) extends RelValue[Relation](wrapped) {
   }
   override def join(other: RelValue[_]): RelValue[_] = {
     return new RelationValue(wrapped.join(other.asInstanceOf[RelValue[Relation]].wrapped))
-  }
-  override def join(other: Relation): RelValue[_] = {
-    return new RelationValue(wrapped.join(other))
-  }
-  override def where(f: (Seq[RelValue[_]]=>RelValue[_])*): RelValue[_] = {
-    return new RelationValue(wrapped.where(f:_*))
-  }
-  override def extend(added: Symbol*)(f: (Array[RelValue[_]]=>Unit)): RelValue[_] = {
-    return new RelationValue(wrapped.extend(added:_*)(f))
   }
 }
 
