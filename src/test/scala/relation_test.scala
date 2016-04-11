@@ -1,6 +1,8 @@
 /**
   * Created by mistasse on 8/04/16.
   */
+/*
+import group24.library.RelValue
 import org.scalatest._
 
 class UnitTest extends FlatSpec with RelEnv
@@ -69,7 +71,7 @@ class RelationTest extends UnitTest {
     assert ((A join dee) == A)
     assert ((B join dee) == B)
   }
-
+  /*
   "where" should "work correctly and accept external types" in {
     assert ((A where {'A :== 1}) == new Relation('A, 'B).add('A->1, 'B->3))
     assert ((A where {'A :== 0}) == new Relation('A, 'B).add('A->0, 'B->2))
@@ -104,4 +106,6 @@ class RelationTest extends UnitTest {
         rename('C as 'A, 'D as 'B)
       ) == A)
   }
+  */
 }
+*/

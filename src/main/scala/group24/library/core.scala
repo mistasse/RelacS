@@ -1,13 +1,18 @@
+package group24.library
+
 import java.util.function.Supplier
 
+import group24.library.RelValue
+
 import scala.collection.mutable.HashSet
-import scala.language.experimental.macros
 import scala.collection.mutable.HashMap
-import scala.language.dynamics
 
 /**
   * Created by mistasse on 6/04/16.
   */
+
+object dum extends Relation()
+object dee extends Relation() { add() }
 
 /**
   * The offset class is the mapping for the indices, of titles, titles of indices, and an iterator over both
@@ -30,23 +35,6 @@ class Offsets(header: Seq[Symbol]) {
   def apply(): Iterator[(Symbol, Int)] = {
     return dict.iterator
   }
-}
-
-class Identifier(sym: Symbol) {
-  def :=(relValue: RelValue[_])(implicit renv: Ref[Environment]): Unit = {
-    val env = renv.get
-    env.record.get(env.positions(sym)) = relValue
-  }
-
-  def as(as: Symbol): (Symbol, Symbol) = (this.sym, as)
-}
-
-object dum extends Relation()
-object dee extends Relation() { add() }
-
-class Environment(val rel: Relation, var record: Option[Array[RelValue[_]]], var params: Seq[(Symbol, Int)]) {
-  def this() = this(dee, None, Nil)
-  val positions = params.groupBy(_._1).mapValues{case Seq(p)=>p._2}
 }
 
 abstract class Ref[T] {
@@ -145,20 +133,14 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     return ret
   }
 
-  def where(f: =>RelValue[_])(implicit renv: Ref[Environment]): Relation = {
+  def where(f: (Seq[RelValue[_]]=>RelValue[_])): Relation = {
     val ret = new Relation(header, offsets)
-    val previous_env = renv.get
-
-    val env = new Environment(this, None, Nil)
-    renv.set(env)
 
     for(record <- this.records) {
-      env.record = Some(record.toArray)
-      if(f.asInstanceOf[RelValue[Boolean]].wrapped)
+      if(f(record).asInstanceOf[RelValue[Boolean]].wrapped)
         ret.records.add(record)
     }
 
-    renv.set(previous_env)
     return ret
   }
 
@@ -168,23 +150,17 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     * @param added
     * @return
     */
-  def extend(added: Symbol*)(f: =>Unit)(implicit renv: Ref[Environment]): Relation = {
+  def extend(added: Symbol*)(f: (Array[RelValue[_]])=>Unit): Relation = {
     val header = this.header ++ added
     val ret = new Relation(header:_*)
-
-    val previous_env = renv.get
-    val env = new Environment(this, None, (0 until added.length).map(i => (added(i), i+arity)))
-    renv.set(env)
 
     for(record <- this.records) {
       val new_record = Array.ofDim[RelValue[_]](header.length)
       Array.copy(record.toArray, 0, new_record, 0, record.length)
-      env.record = Some(new_record)
-      f
-      ret.addAndCheckConstraints(env.record.get)
+      f(new_record)
+      ret.addAndCheckConstraints(new_record)
     }
 
-    renv.set(previous_env)
     return ret
   }
 
@@ -219,7 +195,7 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
 
     for(record <- this.records) {
       val args = mapping.map(h => record(offsets(h)))
-      val new_record = record ++ apply(args.asInstanceOf[Seq[Object]]).asInstanceOf[Seq[RelValue[_]]]
+      val new_record = record ++ apply(args.asInstanceOf[Seq[Object]]).asInstanceOf[Seq[group24.core.RelValue[_]]]
       ret.records += new_record
     }
 

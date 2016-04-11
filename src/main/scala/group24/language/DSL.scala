@@ -1,19 +1,94 @@
+package group24.language
+
+import group24._
+import group24.library._
+
 import scala.collection.mutable
 
 /**
   * Created by mistasse on 6/04/16.
   */
 
+object Types {
+  type Evaluated = (Seq[RelValue[_]])=>RelValue[_]
+  type Record = Seq[RelValue[_]]
+}
+
+class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Types.Evaluated {
+
+  def :=(other: Types.Evaluated): (Array[RelValue[_]])=>Unit = {
+    return (rec: Array[RelValue[_]]) => {
+      rec(renv.get.offsets(sym)) = other(rec)
+    }
+  }
+
+  def idx: Int = renv.get.offsets(sym)
+
+  def apply(rec: Seq[RelValue[_]]): RelValue[_] = rec(idx)
+
+  def :==(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :== other(rec)
+  def :<(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :< other(rec)
+  def :<=(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :<= other(rec)
+  def :>(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :> other(rec)
+  def :>=(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :>= other(rec)
+  def :+(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :+ other(rec)
+  def :-(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :- other(rec)
+  def :*(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :* other(rec)
+  def :/(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) :/ other(rec)
+  def &&(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) && other(rec)
+  def ||(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) || other(rec)
+
+  def JOIN(other: Types.Evaluated): Types.Evaluated = (rec) => rec(idx) join other(rec)
+
+  def as(other: Symbol): (Symbol, Symbol) = {
+    return (sym, other)
+  }
+}
+
+class Environment(val offsets: Offsets) {
+  def this() = this(null)
+}
+
+object REL {
+  def apply(rel: Relation): REL = new REL(rel)
+}
+
+class REL(val rel: Relation) {
+  def this(syms: Symbol*) = this(new Relation(syms:_*))
+  def &(values: RelValue[_]*): Relation = {
+    rel.addAndCheckConstraints(values)
+    return rel
+  }
+
+  def WHERE(bool: Types.Evaluated)(implicit renv: Ref[Environment]): Relation = {
+    val previous_env = renv.get
+    renv.set(new Environment(rel.offsets))
+    val ret = rel.where(bool)
+    renv.set(previous_env)
+    return ret
+  }
+
+  def EXTEND(syms: Symbol*)(closures: ((Array[RelValue[_]])=>Unit)*)(implicit renv: Ref[Environment]): Relation = {
+    val previous_env = renv.get
+    renv.set(new Environment(new Offsets(rel.header ++ syms)))
+    val ret = rel.extend(syms:_*)((rec) => closures.foreach(c => c(rec)))
+    renv.set(previous_env)
+    return ret
+  }
+
+}
+
+/*
 object max {
-  def apply(attribute: Symbol)(implicit renv: Ref[Environment]): RelValue[_] = apply(renv.get.rel, attribute)
-  def apply(rel: RelValue[_], attribute: Symbol)(implicit renv: Ref[Environment]): RelValue[_] = apply(rel.asInstanceOf[RelationValue].wrapped, attribute)
-  def apply(rel: Relation, attribute: Symbol): RelValue[_] = {
-    var max: Option[RelValue[_]] = None
+  def apply(attribute: Symbol)(implicit renv: Ref[Environment]): group24.core.RelValue[_] = apply(renv.get.rel, attribute)
+  def apply(rel: group24.core.RelValue[_], attribute: Symbol)(implicit renv: Ref[Environment]): group24.core.RelValue[_] = apply(rel.asInstanceOf[group24.core.RelationValue].wrapped, attribute)
+  def apply(rel: Relation, attribute: Symbol): group24.core.RelValue[_] = {
+    var max: Option[group24.core.RelValue[_]] = None
     for(record <- rel.records) {
       val current = record(rel.offsets(attribute))
       if(max.isEmpty)
         max = Some(current)
-      else if(current.:>(max.get) == BooleanValue.TRUE)
+      else if(current.:>(max.get) == group24.core.BooleanValue.TRUE)
         max = Some(current)
     }
     return max.get
@@ -21,36 +96,41 @@ object max {
 }
 
 object min {
-  def apply(attribute: Symbol)(implicit renv: Ref[Environment]): RelValue[_] = apply(renv.get.rel, attribute)
-  def apply(rel: RelValue[_], attribute: Symbol)(implicit renv: Ref[Environment]): RelValue[_] = apply(rel.asInstanceOf[RelationValue].wrapped, attribute)
-  def apply(rel: Relation, attribute: Symbol): RelValue[_] = {
-    var min: Option[RelValue[_]] = None
+  def apply(attribute: Symbol)(implicit renv: Ref[Environment]): group24.core.RelValue[_] = apply(renv.get.rel, attribute)
+  def apply(rel: group24.core.RelValue[_], attribute: Symbol)(implicit renv: Ref[Environment]): group24.core.RelValue[_] = apply(rel.asInstanceOf[group24.core.RelationValue].wrapped, attribute)
+  def apply(rel: Relation, attribute: Symbol): group24.core.RelValue[_] = {
+    var min: Option[group24.core.RelValue[_]] = None
     for(record <- rel.records) {
       val current = record(rel.offsets(attribute))
       if(min.isEmpty)
         min = Some(current)
-      else if(current.:<(min.get) == BooleanValue.TRUE)
+      else if(current.:<(min.get) == group24.core.BooleanValue.TRUE)
         min = Some(current)
     }
     return min.get
   }
 }
+*/
 
 trait RelEnv {
   implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment())
 
-  implicit def Sym2RelValue(a: Symbol)(implicit renv: Ref[Environment]): RelValue[_] = renv.get.record.get(renv.get.rel.offsets(a))
-  implicit def Sym2Identifier(a: Symbol): Identifier = new Identifier(a)
+  implicit def Sym2Identifier(a: Symbol)(implicit renv: Ref[Environment]): Identifier = new Identifier(a)
 
+  implicit def Rel2RELATION(a: Relation): REL = REL(a)
+  implicit def Rel2Evaluated(a: Relation): Types.Evaluated = (rec: Types.Record) => a
   implicit def Rel2RelValue(a: Relation): RelValue[_] = new RelationValue(a)
   implicit def SymRel2RelValue(a: (Symbol, Relation)): (Symbol, RelValue[_]) = (a._1, new RelationValue(a._2))
 
+  implicit def String2Evaluated(a: String): Types.Evaluated = (rec: Types.Record) => a
   implicit def String2RelValue(a: String): RelValue[_] = StringValue(a)
   implicit def SymString2RelValue(a: (Symbol, String)): (Symbol, RelValue[_]) = (a._1, StringValue(a._2))
 
+  implicit def Int2Evaluated(a: Int): Types.Evaluated = (rec: Types.Record) => a
   implicit def Int2RelValue(a: Int): RelValue[_] = IntValue(a)
   implicit def SymInt2RelValue(a: (Symbol, Int)): (Symbol, RelValue[_]) = (a._1, IntValue(a._2))
 
+  implicit def Boolean2Evaluated(a: Boolean): Types.Evaluated = (rec: Types.Record) => a
   implicit def Bool2RelValue(a: Boolean): RelValue[_] = BooleanValue(a)
   implicit def SymBool2RelValue(a: (Symbol, Boolean)): (Symbol, RelValue[_]) = (a._1, BooleanValue(a._2))
 
@@ -123,6 +203,9 @@ object main extends RelEnv {
       .add('id->1, 'points->10)
       .add('id->2, 'points->15)
 
+    println(students.EXTEND('ok, 'xD)('ok := 'id, 'xD := 3))
+
+  /*
     println(
       (students join midterm)
         .extend('normal) {
@@ -143,5 +226,6 @@ object main extends RelEnv {
         }
     )
     println(dum == dee)
+    */
   }
 }
