@@ -131,11 +131,11 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     return ret
   }
 
-  def where(f: (Seq[RelValue[_]]=>RelValue[_])): Relation = {
+  def where(f: (Seq[RelValue[_]]=>RelValue[_])*): Relation = {
     val ret = new Relation(header, offsets)
 
     for(record <- this.records) {
-      if(f(record).asInstanceOf[RelValue[Boolean]].wrapped)
+      if(f.forall(_(record).asInstanceOf[RelValue[Boolean]].wrapped))
         ret.records.add(record)
     }
 
@@ -161,45 +161,6 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
 
     return ret
   }
-
-  /*
-  def extend0(mapping: Symbol*)(features: (Symbol, Any)*): Relation = {
-    val header = this.header ++ features.map(f => f._1)
-    val ret = new Relation(header:_*)
-
-    val methods = Array.ofDim[(Seq[Object])=>Any](features.length)
-    for(i <- 0 until methods.length) {
-      val obj = features(i)._2
-      val method = obj.getClass().getMethods()
-        .filter(m => (m.getName == "apply" && m.getParameterTypes().forall(p => p == classOf[Object])))
-      methods(i) = (args: Seq[Object]) => method(0).invoke(obj, args:_*)  // MethodHandles.lookup().unreflect(method(0)).bindTo(obj)
-    }
-    for(record <- this.records) {
-      val args = mapping.map(h => record(offsets(h)))
-      val new_record = record ++ methods.map(m => m(args.asInstanceOf[Seq[Object]]))
-      ret.records += new_record
-    }
-
-    return ret
-  }
-
-  def extend1(mapping: Symbol*)(added: Symbol*)(gen: Any): Relation = {
-    val header = this.header ++ added
-    val ret = new Relation(header:_*)
-
-    val method = gen.getClass.getMethods
-        .filter(m => (m.getName == "apply" && m.getParameterTypes().forall(p => p == classOf[Object])))(0)
-    val apply = (args: Seq[Object]) => method.invoke(gen, args:_*)
-
-    for(record <- this.records) {
-      val args = mapping.map(h => record(offsets(h)))
-      val new_record = record ++ apply(args.asInstanceOf[Seq[Object]]).asInstanceOf[Seq[group24.core.RelValue[_]]]
-      ret.records += new_record
-    }
-
-    return ret
-  }
-  */
 
   override def toString(): String = {
     val b = new StringBuilder()
