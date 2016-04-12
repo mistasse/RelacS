@@ -57,6 +57,7 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
   def this(header: Seq[Symbol], records:HashSet[Seq[RelValue[_]]])                  =  this(header, new Offsets(header), records, true)
   def this(header: Seq[Symbol], offsets:Offsets)                                    =  this(header, offsets, new HashSet[Seq[RelValue[_]]](), false)
   def this(header: Symbol*)                                                         =  this(header, new Offsets(header), new HashSet[Seq[RelValue[_]]](), false)
+  override def clone(): Relation = new Relation(header, offsets, records)
 
   def arity: Int = this.header.length
   def size: Int = this.records.size
@@ -69,16 +70,17 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     val record = Array.ofDim[RelValue[_]](dic.length)
     for(i <- 0 until arity)
       record(offsets(dic(i)._1)) = dic(i)._2
-    if(frozen) {
-      records = records.clone()
-      frozen = false
-    }
     addAndCheckConstraints(record)
     return this
   }
 
+
   def addAndCheckConstraints(record: Seq[RelValue[_]]): Relation = {
     // TODO
+    if(frozen) {
+      records = records.clone()
+      frozen = false
+    }
     records.add(record)
     return this
   }

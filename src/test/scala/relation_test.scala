@@ -77,10 +77,17 @@ class DSLTest extends UnitTest {
   "multiple concat" should "work in internal scope" in {
     val C = RELATION('id) &(0) &(1)
 
+    C EXTEND('a := dee JOIN C)
+
     (C EXTEND('A := RELATION('reid) &('id) &('id :+ 1) &('id :+ 2)))
   }
 
-  /*
+  "min and max" should "do their work" in {
+    assert(MAX(A, 'A) equals IntValue(1))
+    assert(MIN(A, 'A) equals IntValue(0))
+    assert(COUNT(A) equals IntValue(2))
+  }
+
   "extend" should "do the basic job" in {
     assert ((A EXTEND('C := "")).header == Seq('A, 'B, 'C))
     assert ((A EXTEND('C := 'A,'D := 'B) PROJECT('C, 'D) RENAME('C as 'A, 'D as 'B)) == A)
@@ -90,22 +97,21 @@ class DSLTest extends UnitTest {
       A EXTEND (
           'C := 'A,
           'D := 'B,
-          'maxA := max('A),
-          'minA := min('A)
+          'maxA := MAX('A),
+          'minA := MIN('A)
         )
         JOIN RELATION('dupID) & (0) & (1)
         WHERE (
-        ('C :== 'A) &&
-          ('D :== 'B) &&
-          ('maxA :== max(A, 'A)) &&
-          ('minA :== min(A, 'A)) &&
-          ('dupID :== 0)
+          'C :== 'A,
+          'D :== 'B,
+          'maxA :== MAX(A, 'A),
+          'minA :== MIN(A, 'A),
+          'dupID :== 0
         )
         PROJECT('C, 'D)
         RENAME('C as 'A, 'D as 'B)
       ) == A)
   }
-  */
 }
 /*
 

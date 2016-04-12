@@ -9,8 +9,8 @@ import Types._
 
 class Assignment(val sym: Symbol, val clos: (Types.MutableRecord)=>Unit)
 
-class Environment(val offsets: Offsets) {
-  def this() = this(null)
+class Environment(val rel: RRelation, val offsets: Offsets) {
+  def this() = this(null, null)
 }
 
 class RenameAs(a: Symbol) {
@@ -19,7 +19,7 @@ class RenameAs(a: Symbol) {
 
 object RELATION {
   /**
-    * Allows to write RELATION('header1, header2)
+    * Allows to write RELATION('header1, 'header2), just like in Rel
     */
   def apply(syms: Symbol*): RRelation = new RRelation(syms:_*)
 
@@ -28,7 +28,7 @@ object RELATION {
     */
   def WHERE(rel: RRelation, bool: Evaluated*)(implicit renv: Ref[Environment]): RRelation = {
     val previous_env = renv.get
-    renv.set(new Environment(rel.offsets))
+    renv.set(new Environment(rel, rel.offsets))
     val ret = rel.where(bool:_*)
     renv.set(previous_env)
     return ret
@@ -41,7 +41,7 @@ object RELATION {
     val previous_env = renv.get
     val syms = assignments.map(_.sym)
     val fcts = assignments.map(_.clos)
-    renv.set(new Environment(new Offsets(rel.header ++ syms)))
+    renv.set(new Environment(rel, new Offsets(rel.header ++ syms)))
     val ret = rel.extend(syms:_*)((rec) => fcts.foreach(fct => fct(rec)))
     renv.set(previous_env)
     return ret
@@ -49,7 +49,7 @@ object RELATION {
 }
 
 /**
-  * Allows to use caps in the main parts of the program, or static parts of closures
+  * Allows to use caps in the main parts of the program, or static parts of closures, and add records with &
   * E.G:
   * EXTEND(
   *   'ok := RELATION('hey) & (3)
@@ -58,7 +58,7 @@ object RELATION {
 class RELATION(val rel: RRelation) {
 
   /**
-    * Static, preferred since more specific
+    * Static, preferred since more specific than Evaluated*
     */
   def &(values: RelValueWrapper*): RRelation = {
     rel.addAndCheckConstraints(values.map(_.wrapped))
@@ -75,7 +75,7 @@ class RELATION(val rel: RRelation) {
   def &(values: Evaluated*): Evaluated = {
     new ClosureEvaluated((rec: Record) => {
       val evaluated = values.map(_(rec))
-      new RelationValue(rel.join(dee).addAndCheckConstraints(evaluated))
+      new RelationValue(rel.clone().addAndCheckConstraints(evaluated))
     })
   }
 
@@ -96,7 +96,7 @@ class RELATIONEval(val wrapped: Evaluated) extends Evaluated {
   def &(values: Evaluated*): Evaluated = {
     new ClosureEvaluated((rec: Record) => {
       val evaluated = values.map(_ (rec))
-      new RelationValue(this (rec).join(new RelationValue(dee)).wrapped.asInstanceOf[RRelation].addAndCheckConstraints(evaluated))
+      new RelationValue(this(rec).wrapped.asInstanceOf[RRelation].clone().addAndCheckConstraints(evaluated))
     })
   }
 
@@ -157,6 +157,46 @@ trait RelEnv {
   }
   BooleanValue.ops("||")(classOf[BooleanValue]) = (a: Boolean, b: RelValue[_]) => {
     BooleanValue(a || b.asInstanceOf[BooleanValue].wrapped)
+  }
+}
+
+object COUNT {
+  def apply()(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.rel))
+  def apply(rel: Evaluated): Evaluated = CE((rec) => this(rel(rec).wrapped.asInstanceOf[RRelation]))
+  def apply(rel: RRelation): RelValue[_] = {
+    new IntValue(rel.size)
+  }
+}
+
+object MIN {
+  def apply(sym: Symbol)(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.rel, sym))
+  def apply(rel: Evaluated, sym: Symbol): Evaluated = CE((rec) => this(rel(rec).wrapped.asInstanceOf[RRelation], sym))
+  def apply(rel: RRelation, sym: Symbol): RelValue[_] = {
+    var min: Option[RelValue[_]] = None
+    for(record <- rel.records) {
+      val current = record(rel.offsets(sym))
+      if(min.isEmpty)
+        min = Some(current)
+      else if((current < min.get) equals BooleanValue.TRUE)
+        min = Some(current)
+    }
+    min.get
+  }
+}
+
+object MAX {
+  def apply(sym: Symbol)(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.rel, sym))
+  def apply(rel: Evaluated, sym: Symbol): Evaluated = CE((rec) => this(rel(rec).wrapped.asInstanceOf[RRelation], sym))
+  def apply(rel: RRelation, sym: Symbol): RelValue[_] = {
+    var max: Option[RelValue[_]] = None
+    for(record <- rel.records) {
+      val current = record(rel.offsets(sym))
+      if(max.isEmpty)
+        max = Some(current)
+      else if((current > max.get) equals BooleanValue.TRUE)
+        max = Some(current)
+    }
+    max.get
   }
 }
 
