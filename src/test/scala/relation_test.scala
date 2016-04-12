@@ -83,8 +83,11 @@ class DSLTest extends UnitTest {
   }
 
   "min and max" should "do their work" in {
+    // == doesn't work because we are playing on RelValue => returns a BooleanValue
     assert(MAX(A, 'A) equals IntValue(1))
     assert(MIN(A, 'A) equals IntValue(0))
+    assert(MAX(A, 'B) equals IntValue(3))
+    assert(MIN(A, 'B) equals IntValue(2))
     assert(COUNT(A) equals IntValue(2))
   }
 
@@ -101,7 +104,7 @@ class DSLTest extends UnitTest {
           'minA := MIN('A),
           'count := COUNT()
         )
-        JOIN RELATION('dupID) & (0) & (1)
+        JOIN RELATION('dupID) & (0) & (1) // Duplicate entries
         WHERE (
           'C :== 'A,
           'D :== 'B,
@@ -109,6 +112,7 @@ class DSLTest extends UnitTest {
           'minA :== MIN(A, 'A),
           'count :== COUNT(A),
           'count :== COUNT() :/ 2,
+          COUNT() :/ 2 :== COUNT(A),
           'dupID :== 0
         )
         PROJECT('C, 'D)

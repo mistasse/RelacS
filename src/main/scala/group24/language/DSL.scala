@@ -15,6 +15,7 @@ class Environment(val rel: RRelation, val offsets: Offsets) {
 
 class RenameAs(a: Symbol) {
   def as(b: Symbol): (Symbol, Symbol) = (a, b)
+  def AS(b: Symbol): (Symbol, Symbol) = (a, b)
 }
 
 object RELATION {
