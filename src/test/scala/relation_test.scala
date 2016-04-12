@@ -66,9 +66,9 @@ class DSLTest extends UnitTest {
   }
 
   "where" should "work correctly and accept external types" in {
-    assert ((A WHERE {'A :== 1}) == (RELATION('A, 'B) & (1, 3)))
-    assert ((A WHERE {'A :== 0}) == (RELATION('A, 'B) & (0, 2)))
-    assert (((A JOIN B) WHERE {'B :== 'C}) == (RELATION('A, 'B, 'C) & (1, 3, 3)))
+    assert ((A WHERE ('A :== 1)) == (RELATION('A, 'B) & (1, 3)))
+    assert ((A WHERE ('A :== 0)) == (RELATION('A, 'B) & (0, 2)))
+    assert (((A JOIN B) WHERE ('B :== 'C)) == (RELATION('A, 'B, 'C) & (1, 3, 3)))
 
     val C = RELATION('A) & (A)
     assert ((C WHERE {'A :== A}) == C)
@@ -98,7 +98,8 @@ class DSLTest extends UnitTest {
           'C := 'A,
           'D := 'B,
           'maxA := MAX('A),
-          'minA := MIN('A)
+          'minA := MIN('A),
+          'count := COUNT()
         )
         JOIN RELATION('dupID) & (0) & (1)
         WHERE (
@@ -106,6 +107,8 @@ class DSLTest extends UnitTest {
           'D :== 'B,
           'maxA :== MAX(A, 'A),
           'minA :== MIN(A, 'A),
+          'count :== COUNT(A),
+          'count :== COUNT() :/ 2,
           'dupID :== 0
         )
         PROJECT('C, 'D)
