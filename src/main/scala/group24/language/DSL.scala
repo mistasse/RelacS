@@ -77,6 +77,7 @@ object RECORD {
   */
 class RELATION(val rel: RRelation) {
   def toSet() = new PseudoMonadRelation(rel)
+  def foreach[U](f: (PseudoMonadRecord)=>U) = toSet().foreach(f)
   def map[B](f: (PseudoMonadRecord)=>PseudoMonadRecord) = {
     val recordsSet = toSet().map(f)
     var ret: RRelation = if(recordsSet.isEmpty) new RRelation() else null
@@ -91,18 +92,17 @@ class RELATION(val rel: RRelation) {
 
     ret
   }
-  def withFilter(f: (PseudoMonadRecord)=>Boolean): RRelation = {
+  def withFilter(f: (PseudoMonadRecord)=>RelValue[_]): RRelation = {
     val ret = new RRelation(rel.header:_*)
 
     val recordSet = toSet()
     for(record <- recordSet) {
-      if(f(record))
+      if(f(record) == BooleanValue.TRUE)
         ret.addAndCheckConstraints(record.array)
     }
 
     return ret
   }
-  def foreach[U](f: (PseudoMonadRecord)=>U) = toSet().foreach(f)
   def flatMap(f: (PseudoMonadRecord)=>RRelation) = {
     val relationsSet = toSet().map(f)
     var ret: RRelation = if(relationsSet.isEmpty) new RRelation() else null
@@ -203,6 +203,8 @@ trait RelEnv {
   implicit def Int2Evaluated(a: Int): RelValueWrapper = new RelValueWrapper(IntValue(a))
   implicit def Boolean2Evaluated(a: Boolean): RelValueWrapper = new RelValueWrapper(BooleanValue(a))
 
+  implicit def RelBool2Boolean(a: RelValue[_]): Boolean = a.wrapped.asInstanceOf[Boolean]
+
   //implicit def SetSeqRelValues2Rel(a: Set[_ <: Seq[RelValue[_]]]): SetSeqToRelation = new SetSeqToRelation(a.asInstanceOf[Set[Seq[RelValue[_]]]])
   //implicit def SetRelValues2Rel(a: Set[RelValue[_]]): SetToRelation = new SetToRelation(a)
 
@@ -302,7 +304,7 @@ object main extends RelEnv {
       s <- students
       g <- grades
       if g('id) == s('id)
-    } yield RECORD('name, 'grade)(s('name), g('points)))
+    } yield RECORD('name, 'grade)(s('name), if(g('points) > IntValue(16)) StringValue("GD") else StringValue("D") ))
 
     println(
       students JOIN grades flatMap(r =>
