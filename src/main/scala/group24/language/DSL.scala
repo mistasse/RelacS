@@ -91,6 +91,17 @@ class RELATION(val rel: RRelation) {
 
     ret
   }
+  def withFilter(f: (PseudoMonadRecord)=>Boolean): RRelation = {
+    val ret = new RRelation(rel.header:_*)
+
+    val recordSet = toSet()
+    for(record <- recordSet) {
+      if(f(record))
+        ret.addAndCheckConstraints(record.array)
+    }
+
+    return ret
+  }
   def foreach[U](f: (PseudoMonadRecord)=>U) = toSet().foreach(f)
   def flatMap(f: (PseudoMonadRecord)=>RRelation) = {
     val relationsSet = toSet().map(f)
@@ -286,6 +297,12 @@ object main extends RelEnv {
         RECORD('name, 'good)(r('name), r('points) == MAX(grades, 'points))
         )
     )
+
+    println(for{
+      s <- students
+      g <- grades
+      if g('id) == s('id)
+    } yield RECORD('name, 'grade)(s('name), g('points)))
 
     println(
       students JOIN grades flatMap(r =>
