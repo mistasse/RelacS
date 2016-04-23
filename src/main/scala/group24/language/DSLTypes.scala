@@ -83,19 +83,17 @@ class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Evaluated
   def apply(env: Environment): RelValue[_] = env.hashMap(sym)
 }
 
-class PseudoMonadRecord(val rel: RRelation, val array: Seq[RelValue[_]]) extends Seq[RelValue[_]] {
-  def apply(idx: Symbol): RelValue[_] = array(rel.offsets(idx))
+class PseudoMonadRecord(val header: Seq[Symbol], val array: Seq[RelValue[_]]) {
+  def apply(idx: Symbol): RelValue[_] = array(header.indexOf(idx))
+  def apply(idx: Int): RelValue[_] = array(idx)
 
-  override def length: Int = array.length
-  override def apply(idx: Int): RelValue[_] = array(idx)
-  override def iterator: Iterator[RelValue[_]] = array.iterator
   override def equals(other: Any): Boolean = {
     if(!other.isInstanceOf[PseudoMonadRecord])
       return false;
     val that = other.asInstanceOf[PseudoMonadRecord]
-    if(rel.header.toSet != that.rel.header.toSet)
+    if(header.toSet != that.header.toSet)
       return false;
-    val mapping = rel.header.map(that.rel.offsets(_))
+    val mapping = if(header == that.header) Range(0, header.length) else header.map(that.header.indexOf(_))
     array equals mapping.map(that.array);
   }
   override def hashCode(): Int = {
@@ -106,14 +104,14 @@ class PseudoMonadRecord(val rel: RRelation, val array: Seq[RelValue[_]]) extends
     for(i <- array.indices) {
       if(i != 0)
         b.append(", ")
-      b.append(rel.offsets(i).name).append(": ").append(array(i))
+      b.append(header(i).name).append(": ").append(array(i))
     }
     b.append("}").toString()
   }
 }
 
 class PseudoMonadRelation(val rel: RRelation) extends Set[PseudoMonadRecord] {
-  val records = rel.records.map(new PseudoMonadRecord(rel, _))
+  val records = rel.records.map(new PseudoMonadRecord(rel.header, _))
 
   override def toString(): String = {
     rel.toString()
@@ -122,7 +120,7 @@ class PseudoMonadRelation(val rel: RRelation) extends Set[PseudoMonadRecord] {
   override def -(elem: PseudoMonadRecord): Set[PseudoMonadRecord] = ???
   override def +(elem: PseudoMonadRecord): Set[PseudoMonadRecord] = {
     val ret = rel.clone()
-    val mapping = rel.header.map(elem.rel.offsets(_))
+    val mapping = rel.header.map(elem.header.indexOf(_))
     ret.addAndCheckConstraints(mapping.map(elem(_)))
     return new PseudoMonadRelation(ret)
   }

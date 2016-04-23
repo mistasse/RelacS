@@ -64,6 +64,10 @@ object RELATION {
   }
 }
 
+object RECORD {
+  def apply(header: Symbol*)(wrappers: RelValue[_]*) = new PseudoMonadRecord(header, wrappers)
+}
+
 /**
   * Allows to use caps in the main parts of the program, or static parts of closures, and add records with &
   * E.G:
@@ -73,6 +77,34 @@ object RELATION {
   */
 class RELATION(val rel: RRelation) {
   def toSet() = new PseudoMonadRelation(rel)
+  def map[B](f: (PseudoMonadRecord)=>PseudoMonadRecord) = {
+    val recordsSet = toSet().map(f)
+    var ret: RRelation = if(recordsSet.isEmpty) new RRelation() else null
+
+    for(record <- recordsSet) {
+      if(ret == null)
+        ret = new RRelation(record.header:_*)
+      if(ret.header != record.header)
+        throw new RuntimeException("map records with different headers is not allowed")
+      ret.addAndCheckConstraints(record.array)
+    }
+
+    ret
+  }
+  def foreach[U](f: (PseudoMonadRecord)=>U) = toSet().foreach(f)
+  def flatMap(f: (PseudoMonadRecord)=>RRelation) = {
+    val relationsSet = toSet().map(f)
+    var ret: RRelation = if(relationsSet.isEmpty) new RRelation() else null
+    for(relation <- relationsSet) {
+      if(ret == null)
+        ret = new RRelation(relation.header:_*)
+      if(relation.size > 0 && ret.header != relation.header)
+        throw new RuntimeException("flatMap with different headers is not allowed")
+      for(record <- relation.records)
+        ret.addAndCheckConstraints(record)
+    }
+    ret
+  }
 
   /**
     * Static, preferred since more specific than Evaluated*
@@ -133,14 +165,6 @@ class RELATIONEval(val wrapped: Evaluated) {
   def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): Evaluated = wrapped extend(assignments:_*)
 }
 
-class SetToRelation(val set: Set[Seq[RelValue[_]]]) {
-  def toRelation(header: Symbol*): RRelation = {
-    val ret = new RRelation(header, mutable.HashSet[Seq[RelValue[_]]]())
-    this.set.foreach(ret.addAndCheckConstraints)
-    ret
-  }
-}
-
 trait RelEnv {
   implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment(HashMap.empty[Symbol, RelValue[_]], null))
 
@@ -159,12 +183,17 @@ trait RelEnv {
   // at the top level(Relation could either be caster to Evaluated or RELATION). This is a nice trick to allow the same
   // syntax!
 
+  // For monads
+  implicit def RelValue2RelValueWrapper(a: Option[Nothing]): RRelation = dum
+  implicit def RelValue2RelValueWrapper(a: RelValue[_]): RelValueWrapper = new RelValueWrapper(a)
+
   // Obvious here!
   implicit def String2Evaluated(a: String): RelValueWrapper = new RelValueWrapper(StringValue(a))
   implicit def Int2Evaluated(a: Int): RelValueWrapper = new RelValueWrapper(IntValue(a))
   implicit def Boolean2Evaluated(a: Boolean): RelValueWrapper = new RelValueWrapper(BooleanValue(a))
 
-  implicit def SetSeqRelValues2Rel(a: Set[_ <: Seq[RelValue[_]]]): SetToRelation = new SetToRelation(a.asInstanceOf[Set[Seq[RelValue[_]]]])
+  //implicit def SetSeqRelValues2Rel(a: Set[_ <: Seq[RelValue[_]]]): SetSeqToRelation = new SetSeqToRelation(a.asInstanceOf[Set[Seq[RelValue[_]]]])
+  //implicit def SetRelValues2Rel(a: Set[RelValue[_]]): SetToRelation = new SetToRelation(a)
 
   IntValue.ops("+")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
     IntValue(a + b.asInstanceOf[IntValue].wrapped)
@@ -251,6 +280,22 @@ object main extends RelEnv {
         (0, 15) &
         (1, 18) &
         (2, 20)
+
+    println(
+      students JOIN grades map(r =>
+        RECORD('name, 'good)(r('name), r('points) == MAX(grades, 'points))
+        )
+    )
+
+    println(
+      students JOIN grades flatMap(r =>
+        if(r('name).wrapped equals "Jérôme")
+          None
+        else
+          RELATION('name, 'good) &
+            (r('name), r('points).wrapped == 20)
+        )
+    )
 
     (
       (students JOIN grades)
