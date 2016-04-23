@@ -63,6 +63,10 @@ abstract class RelValue[T](val wrapped: T) {
     throw new RuntimeException("join not implemented on "+getClass.getName)
   }
 
+  def union(other: RelValue[_]): RelValue[_] = {
+    throw new RuntimeException("union not implemented on "+getClass.getName)
+  }
+
   override def toString(): String = wrapped.toString()
 
   override def hashCode(): Int = wrapped.hashCode()
@@ -79,6 +83,9 @@ class RelationValue(wrapped: Relation) extends RelValue[Relation](wrapped) {
   }
   override def join(other: RelValue[_]): RelValue[_] = {
     return new RelationValue(wrapped.join(other.asInstanceOf[RelValue[Relation]].wrapped))
+  }
+  override def union(other: RelValue[_]): RelValue[_] = {
+    return new RelationValue(wrapped.union(other.asInstanceOf[RelValue[Relation]].wrapped))
   }
 }
 

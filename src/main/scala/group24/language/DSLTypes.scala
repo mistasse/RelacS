@@ -44,18 +44,19 @@ trait Evaluated extends Types.Evaluated {
   def :/(other: Evaluated): Evaluated = CE((env) => this(env) / other(env))
   def &&(other: Evaluated): Evaluated = CE((env) => this(env) && other(env))
   def ||(other: Evaluated): Evaluated = CE((env) => this(env) || other(env))
-  def join(other: Evaluated): Evaluated = CE((rec) => this(rec) join other(rec))
-  def rename(renamings: (Symbol, Symbol)*): Evaluated = CE((rec) => this(rec) rename(renamings:_*))
-  def project(keep: Symbol*): Evaluated = CE((rec) => this(rec) project(keep:_*))
+  def join(other: Evaluated): Evaluated = CE((env) => this(env) join other(env))
+  def union(other: Evaluated): Evaluated = CE((env) => this(env) union other(env))
+  def rename(renamings: (Symbol, Symbol)*): Evaluated = CE((env) => this(env) rename(renamings:_*))
+  def project(keep: Symbol*): Evaluated = CE((env) => this(env) project(keep:_*))
   def where(conditions: Evaluated*)(implicit renv: Ref[Environment]): Evaluated = {
-    CE((rec) => {
-      val rel = this(rec).asInstanceOf[RelationValue].wrapped
+    CE((env) => {
+      val rel = this(env).asInstanceOf[RelationValue].wrapped
       new RelationValue(RELATION.WHERE(rel, conditions:_*))
     })
   }
   def extend(assignments: Assignment*)(implicit renv: Ref[Environment]): Evaluated = {
-    CE((rec) => {
-      val rel = this(rec).asInstanceOf[RelationValue].wrapped
+    CE((env) => {
+      val rel = this(env).asInstanceOf[RelationValue].wrapped
       new RelationValue(RELATION.EXTEND(rel, assignments:_*))
     })
   }

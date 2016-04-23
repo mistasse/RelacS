@@ -97,6 +97,7 @@ class RELATION(val rel: RRelation) {
   }
 
   def JOIN(other: RRelation): RRelation = rel.join(other)
+  def UNION(other: RRelation): RRelation = rel.union(other)
   def RENAME(renamings: (Symbol, Symbol)*): RRelation = rel.rename(renamings:_*)
   def PROJECT(keep: Symbol*): RRelation = rel.project(keep:_*)
 
@@ -122,6 +123,7 @@ class RELATIONEval(val wrapped: Evaluated) {
   }
 
   def JOIN(other: Evaluated): Evaluated = wrapped join other
+  def UNION(other: Evaluated): Evaluated = wrapped union other
   def RENAME(renamings: (Symbol, Symbol)*): Evaluated = wrapped rename(renamings:_*)
   def PROJECT(keep: Symbol*): Evaluated = wrapped project(keep:_*)
 
@@ -225,28 +227,42 @@ object main extends RelEnv {
 
   def main(args: Array[String]) {
 
-    val student =
+    val students = (
       RELATION('id, 'name, 'surname) &
         (0, "Maxime", "Istasse") &
         (1, "Jérôme", "Lemaire") &
-        (2, "Léonard", "Julémont")
-
+        (2, "Léonard", "Julémont") PROJECT('id, 'surname, 'name)
+      )
     val grades =
       RELATION('id, 'points) &
         (0, 15) &
         (1, 18) &
         (2, 20)
-
     (
-      (student JOIN grades)
+      (students JOIN grades)
       EXTEND (
         'best := ('points :== MAX('points)),
-        'better_than := student join grades
+        'better_than := students join grades
           rename('points as 'otherp)
           where('points :> 'otherp)
-          project('name, 'surname)
+          project('name, 'surname),
+        'lower_than := students join grades
+          rename('points as 'otherp)
+          where('points :< 'otherp)
+          project('surname, 'name)
+          union RELATION('name, 'surname) & ("Prof", "The")  // Adding the Prof
         )
       PRINT
+      /*UNION (
+        RELATION('id, 'name, 'surname, 'points) & // Adding the prof
+          ("∞", "Prof", "The", "∞")
+        EXTEND(
+          'best := true,
+          'better_than := students join grades project('surname, 'name), // Better than every student
+          'lower_than := students join grades join dum project('surname, 'name) // Nobody is better than him actually
+          )
+        )
+      PRINT*/
     )
   }
 }

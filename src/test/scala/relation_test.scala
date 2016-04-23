@@ -32,6 +32,18 @@ class DSLTest extends UnitTest {
     assert(A.RENAME('A as 'C).header == Seq('C, 'B))
   }
 
+  "union" should "work" in {
+    val ABC = RELATION('A, 'B, 'C) & (0, 1, 2)
+    val A = RELATION('A, 'B, 'C)
+    val B = RELATION('B, 'A, 'C) & (1, 0, 2)
+    val C = RELATION('C, 'A, 'B) & (2, 0, 1)
+
+    assert((A UNION B) == ABC)
+    assert((A UNION C) == ABC)
+    assert((A UNION B).header == ABC.header)
+    assert((A UNION C).header == ABC.header)
+  }
+
   "duplicates" should "not happen in records" in {
     val A = RELATION('A, 'B) & (0, 1) & (0, 1)
 
@@ -114,8 +126,7 @@ class DSLTest extends UnitTest {
         )
         JOIN RELATION('dupID) &(0) &(1) // Duplicate entries
         WHERE (
-          'C :== 'A,
-          'D :== 'B,
+          ('C :== 'A) && ('D :== 'B),
           'maxA :== MAX(A, 'A),
           'minA :== MIN(A, 'A),
           'count :== COUNT(A),

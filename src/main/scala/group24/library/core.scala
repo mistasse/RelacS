@@ -18,7 +18,7 @@ object dee extends Relation() { add() }
   */
 class Offsets(header: Seq[Symbol]) {
   val dict = new HashMap[Symbol, Int]()
-  for (i <- 0 until header.size)
+  for (i <- header.indices)
     dict(header(i)) = i
 
   def apply(h: Symbol): Int = {
@@ -109,6 +109,21 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     return ret
   }
 
+  def union(other: Relation): Relation = {
+    if(this.header.toSet != other.header.toSet)
+      throw new RuntimeException("Union of two relations that don't have the same header")
+
+    val header = this.header
+    val ret = this.clone()
+
+    val mapping = header.map(other.offsets(_)) // this(0 => 'a) = other(other_offset('a) = mapping(0))
+    for(record_b <- other.records) {
+      ret.addAndCheckConstraints(mapping.map(record_b(_)))
+    }
+
+    return ret
+  }
+
   def project(kept: Symbol*): Relation = {
     val ret = new Relation(kept:_*)
     val old_to_new = kept.map(this.offsets(_)) // new(:) = old(old_to_new)
@@ -150,6 +165,9 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     * @return
     */
   def extend(added: Symbol*)(f: (Array[RelValue[_]])=>Unit): Relation = {
+    if(!added.forall(!this.header.contains(_)))
+      throw new RuntimeException("Cannot extend an already existing field")
+
     val header = this.header ++ added
     val ret = new Relation(header:_*)
 
