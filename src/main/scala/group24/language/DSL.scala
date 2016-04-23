@@ -3,14 +3,17 @@ package group24.language
 import group24.library.{Relation => RRelation, _}
 import Types._
 
+import scala.collection.mutable.HashMap
+
 /**
   * Created by mistasse on 6/04/16.
   */
 
 class Assignment(val sym: Symbol, val clos: (Types.MutableRecord)=>Unit)
 
-class Environment(val rel: RRelation, val offsets: Offsets) {
-  def this() = this(null, null)
+class Environment(val hashMap: HashMap[Symbol, RelValue[_]], val current_relation: RRelation, val new_offsets: Offsets=null) {
+  def this(env: Environment, rel: RRelation) = this(env.hashMap.clone(), rel, null)
+  def this(env: Environment, rel: RRelation, new_offsets: Offsets) = this(env.hashMap.clone(), rel, new_offsets)
 }
 
 class RenameAs(a: Symbol) {
@@ -28,10 +31,17 @@ object RELATION {
     * Factorized code for contextualized WHERE
     */
   def WHERE(rel: RRelation, bool: Evaluated*)(implicit renv: Ref[Environment]): RRelation = {
-    val previous_env = renv.get
-    renv.set(new Environment(rel, rel.offsets))
-    val ret = rel.where(bool:_*)
-    renv.set(previous_env)
+    val parent_env = renv.get
+    val env = new Environment(parent_env, rel)
+    renv.set(env)
+    val map = env.hashMap
+
+    val ret = rel.where((rec) => {
+      for((h, i) <- rel.offsets())
+        map.put(h, rec(i))
+      BooleanValue(bool.forall(fct => fct(env) equals BooleanValue.TRUE))
+    })
+    renv.set(parent_env)
     return ret
   }
 
@@ -42,8 +52,14 @@ object RELATION {
     val previous_env = renv.get
     val syms = assignments.map(_.sym)
     val fcts = assignments.map(_.clos)
-    renv.set(new Environment(rel, new Offsets(rel.header ++ syms)))
-    val ret = rel.extend(syms:_*)((rec) => fcts.foreach(fct => fct(rec)))
+    val env = new Environment(previous_env, rel, new Offsets(rel.header ++ syms))
+    renv.set(env)
+    val map = env.hashMap
+    val ret = rel.extend(syms:_*)((rec) =>{
+      for((h, i) <- rel.offsets())
+        map.put(h, rec(i))
+      fcts.foreach(fct => fct(rec))
+    })
     renv.set(previous_env)
     return ret
   }
@@ -74,8 +90,8 @@ class RELATION(val rel: RRelation) {
     * )
     */
   def &(values: Evaluated*): Evaluated = {
-    new ClosureEvaluated((rec: Record) => {
-      val evaluated = values.map(_(rec))
+    new ClosureEvaluated((env: Environment) => {
+      val evaluated = values.map(_(env))
       new RelationValue(rel.clone().addAndCheckConstraints(evaluated))
     })
   }
@@ -96,12 +112,12 @@ class RELATION(val rel: RRelation) {
   * Allows to use caps within expressions
   */
 class RELATIONEval(val wrapped: Evaluated) {
-  def apply(rec: Record): RelValue[_] = wrapped(rec)
+  def apply(env: Environment): RelValue[_] = wrapped(env)
 
   def &(values: Evaluated*): Evaluated = {
-    new ClosureEvaluated((rec: Record) => {
-      val evaluated = values.map(_ (rec))
-      new RelationValue(this(rec).wrapped.asInstanceOf[RRelation].clone().addAndCheckConstraints(evaluated))
+    new ClosureEvaluated((env: Environment) => {
+      val evaluated = values.map(_(env))
+      new RelationValue(this(env).wrapped.asInstanceOf[RRelation].clone().addAndCheckConstraints(evaluated))
     })
   }
 
@@ -114,7 +130,7 @@ class RELATIONEval(val wrapped: Evaluated) {
 }
 
 trait RelEnv {
-  implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment())
+  implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment(HashMap.empty[Symbol, RelValue[_]], null))
 
   // Allows creating identifiers linked to the current Environment Reference for further evaluation
   implicit def Sym2Identifier(a: Symbol)(implicit renv: Ref[Environment]): Identifier = new Identifier(a)
@@ -166,7 +182,7 @@ trait RelEnv {
 }
 
 object COUNT {
-  def apply()(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.rel))
+  def apply()(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.current_relation))
   def apply(rel: Evaluated): Evaluated = CE((rec) => this(rel(rec).wrapped.asInstanceOf[RRelation]))
   def apply(rel: RRelation): RelValue[_] = {
     new IntValue(rel.size)
@@ -174,7 +190,7 @@ object COUNT {
 }
 
 object MIN {
-  def apply(sym: Symbol)(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.rel, sym))
+  def apply(sym: Symbol)(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.current_relation, sym))
   def apply(rel: Evaluated, sym: Symbol): Evaluated = CE((rec) => this(rel(rec).wrapped.asInstanceOf[RRelation], sym))
   def apply(rel: RRelation, sym: Symbol): RelValue[_] = {
     var min: Option[RelValue[_]] = None
@@ -190,7 +206,7 @@ object MIN {
 }
 
 object MAX {
-  def apply(sym: Symbol)(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.rel, sym))
+  def apply(sym: Symbol)(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.current_relation, sym))
   def apply(rel: Evaluated, sym: Symbol): Evaluated = CE((rec) => this(rel(rec).wrapped.asInstanceOf[RRelation], sym))
   def apply(rel: RRelation, sym: Symbol): RelValue[_] = {
     var max: Option[RelValue[_]] = None
@@ -218,14 +234,17 @@ object main extends RelEnv {
     val grades =
       RELATION('id, 'points) &
         (0, 15) &
-        (1, 20) &
+        (1, 18) &
         (2, 20)
 
     (
       (student JOIN grades)
       EXTEND (
         'best := ('points :== MAX('points)),
-        'lower := (student join grades extend('tp := 'points) where('points :< 'tp))
+        'better_than := student join grades
+          rename('points as 'otherp)
+          where('points :> 'otherp)
+          project('name, 'surname)
         )
       PRINT
     )

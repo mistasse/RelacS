@@ -132,11 +132,11 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     return ret
   }
 
-  def where(f: (Seq[RelValue[_]]=>RelValue[_])*): Relation = {
+  def where(f: Seq[RelValue[_]]=>RelValue[_]): Relation = {
     val ret = new Relation(header, offsets)
 
     for(record <- this.records) {
-      if(f.forall(_(record).asInstanceOf[RelValue[Boolean]].wrapped))
+      if(f(record).asInstanceOf[RelValue[Boolean]].wrapped)
         ret.records.add(record)
     }
 
@@ -206,7 +206,7 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     })
 
     val len = b.length
-    b.insert(0, "-"*len+"\n")
+    b.insert(0, "="*len+"\n")
     b.append("\n").append("="*len).append("\n")
 
     for((row, r) <- strings.zipWithIndex) {

@@ -10,7 +10,7 @@ object Types {
   /**
     * Evaluated is
     */
-  type Evaluated = (Seq[RelValue[_]])=>RelValue[_]
+  type Evaluated = (Environment)=>RelValue[_]
   /**
     * Record is the format of a tuple in a relation
     */
@@ -30,20 +30,20 @@ object CE {
   * So it is possible to chain operators on "Evaluated"
   */
 trait Evaluated extends Types.Evaluated {
-  def apply(rec: Seq[RelValue[_]]): RelValue[_]
+  def apply(env: Environment): RelValue[_]
 
-  def :==(other: Evaluated): Evaluated = CE((rec) => this(rec) == other(rec))
-  def :<>(other: Evaluated): Evaluated = CE((rec) => this(rec) <> other(rec))
-  def :<(other: Evaluated): Evaluated = CE((rec) => this(rec) < other(rec))
-  def :<=(other: Evaluated): Evaluated = CE((rec) => this(rec) <= other(rec))
-  def :>(other: Evaluated): Evaluated = CE((rec) => this(rec) > other(rec))
-  def :>=(other: Evaluated): Evaluated = CE((rec) => this(rec) >= other(rec))
-  def :+(other: Evaluated): Evaluated = CE((rec) => this(rec) + other(rec))
-  def :-(other: Evaluated): Evaluated = CE((rec) => this(rec) - other(rec))
-  def :*(other: Evaluated): Evaluated = CE((rec) => this(rec) * other(rec))
-  def :/(other: Evaluated): Evaluated = CE((rec) => this(rec) / other(rec))
-  def &&(other: Evaluated): Evaluated = CE((rec) => this(rec) && other(rec))
-  def ||(other: Evaluated): Evaluated = CE((rec) => this(rec) || other(rec))
+  def :==(other: Evaluated): Evaluated = CE((env) => this(env) == other(env))
+  def :<>(other: Evaluated): Evaluated = CE((env) => this(env) <> other(env))
+  def :<(other: Evaluated): Evaluated = CE((env) => this(env) < other(env))
+  def :<=(other: Evaluated): Evaluated = CE((env) => this(env) <= other(env))
+  def :>(other: Evaluated): Evaluated = CE((env) => this(env) > other(env))
+  def :>=(other: Evaluated): Evaluated = CE((env) => this(env) >= other(env))
+  def :+(other: Evaluated): Evaluated = CE((env) => this(env) + other(env))
+  def :-(other: Evaluated): Evaluated = CE((env) => this(env) - other(env))
+  def :*(other: Evaluated): Evaluated = CE((env) => this(env) * other(env))
+  def :/(other: Evaluated): Evaluated = CE((env) => this(env) / other(env))
+  def &&(other: Evaluated): Evaluated = CE((env) => this(env) && other(env))
+  def ||(other: Evaluated): Evaluated = CE((env) => this(env) || other(env))
   def join(other: Evaluated): Evaluated = CE((rec) => this(rec) join other(rec))
   def rename(renamings: (Symbol, Symbol)*): Evaluated = CE((rec) => this(rec) rename(renamings:_*))
   def project(keep: Symbol*): Evaluated = CE((rec) => this(rec) project(keep:_*))
@@ -65,7 +65,7 @@ trait Evaluated extends Types.Evaluated {
   * Chained operators, ...
   */
 class ClosureEvaluated(clos: Types.Evaluated) extends Evaluated {
-  override def apply(rec: Seq[RelValue[_]]): RelValue[_] = clos(rec)
+  override def apply(env: Environment): RelValue[_] = clos(env)
 }
 
 /**
@@ -74,18 +74,16 @@ class ClosureEvaluated(clos: Types.Evaluated) extends Evaluated {
 class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Evaluated {
   def :=(other: Types.Evaluated): Assignment = {
     new Assignment(sym, (rec: Array[RelValue[_]]) => {
-      rec(renv.get.offsets(sym)) = other(rec)
+      rec(renv.get.new_offsets(sym)) = other(renv.get)
     })
   }
 
-  @inline def idx: Int = renv.get.offsets(sym)
-
-  def apply(rec: Seq[RelValue[_]]): RelValue[_] = rec(idx)
+  def apply(env: Environment): RelValue[_] = env.hashMap(sym)
 }
 
 /**
   * Constants
   */
 class RelValueWrapper(val wrapped: RelValue[_]) extends Evaluated {
-  def apply(rec: Types.Record): RelValue[_] = wrapped
+  def apply(env: Environment): RelValue[_] = wrapped
 }
