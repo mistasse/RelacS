@@ -33,6 +33,7 @@ trait Evaluated extends Types.Evaluated {
   def apply(rec: Seq[RelValue[_]]): RelValue[_]
 
   def :==(other: Evaluated): Evaluated = CE((rec) => this(rec) == other(rec))
+  def :<>(other: Evaluated): Evaluated = CE((rec) => this(rec) <> other(rec))
   def :<(other: Evaluated): Evaluated = CE((rec) => this(rec) < other(rec))
   def :<=(other: Evaluated): Evaluated = CE((rec) => this(rec) <= other(rec))
   def :>(other: Evaluated): Evaluated = CE((rec) => this(rec) > other(rec))

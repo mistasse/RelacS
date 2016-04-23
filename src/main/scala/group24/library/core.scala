@@ -2,8 +2,7 @@ package group24.library
 
 import java.util.function.Supplier
 
-import scala.collection.mutable.HashSet
-import scala.collection.mutable.HashMap
+import scala.collection.mutable.{ArrayBuffer, HashSet, HashMap}
 
 /**
   * Created by mistasse on 6/04/16.
@@ -165,10 +164,61 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
   }
 
   override def toString(): String = {
-    val b = new StringBuilder()
-    b.append(header.mkString(" ")).append('\n')
-    for(record <- records)
-      b.append(record.mkString(" ")).append('\n')
+    val max_height = Array.ofDim[Int](size)
+    val max_width = this.header.map(s => s.name.length).toArray
+    val strings = Array.ofDim[Seq[ArrayBuffer[String]]](size)
+
+    for((record, i) <- records.zipWithIndex) {
+      strings(i) = record.map(i => ArrayBuffer(i.wrapped.toString().split("\n"):_*))
+      for((array, j) <- strings(i).zipWithIndex) {
+        val max = array.map(_.length()).max
+        if(max > max_width(j))
+          max_width(j) = max
+      }
+      val maxh = if(!strings(i).isEmpty) strings(i).map(_.length).max else 1
+      if(maxh > max_height(i))
+        max_height(i) = maxh
+    }
+
+    val header = Array.ofDim[String](arity)
+    for(i <- this.header.indices) {
+      val s = this.header(i).name
+      header(i) = (" "*(max_width(i)-s.length))+s
+    }
+
+    /**
+      *
+      */
+    for((row, r) <- strings.zipWithIndex) {
+      for((column, c) <- row.zipWithIndex) {
+        for ((line, i) <- column.zipWithIndex) {
+          column(i) = (" " * (max_width(c)-line.length)) + line
+        }
+        val space = " " * max_width(c)
+        val sup_lines = Array.tabulate(max_height(r)-column.length)(i => space)
+        row(c).appendAll(sup_lines)
+      }
+    }
+
+    val b = new StringBuilder("|")
+    header.foreach(h => {
+      b.append(h).append("|")
+    })
+
+    val len = b.length
+    b.insert(0, "-"*len+"\n")
+    b.append("\n").append("="*len).append("\n")
+
+    for((row, r) <- strings.zipWithIndex) {
+        for(i <- 0 until max_height(r)) {
+          b.append("|")
+          row.foreach(array => {
+            b.append(array(i)).append("|")
+          })
+          b.append("\n")
+        }
+    }
+    b.append("-"*len).append("\n")
     return b.toString()
   }
 

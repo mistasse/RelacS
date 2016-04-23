@@ -86,12 +86,16 @@ class RELATION(val rel: RRelation) {
 
   def WHERE(bool: Evaluated*)(implicit renv: Ref[Environment]): RRelation = RELATION.WHERE(rel, bool:_*)
   def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): RRelation = RELATION.EXTEND(rel, assignments:_*)
+  def PRINT(): RRelation = {
+    System.out.println(rel)
+    return rel
+  }
 }
 
 /**
   * Allows to use caps within expressions
   */
-class RELATIONEval(val wrapped: Evaluated) extends Evaluated {
+class RELATIONEval(val wrapped: Evaluated) {
   def apply(rec: Record): RelValue[_] = wrapped(rec)
 
   def &(values: Evaluated*): Evaluated = {
@@ -214,15 +218,16 @@ object main extends RelEnv {
     val grades =
       RELATION('id, 'points) &
         (0, 15) &
-        (1, 20)
+        (1, 20) &
+        (2, 20)
 
     (
       (student JOIN grades)
       EXTEND (
-        'winner := ('points :== 20),
-        'looser := ('points :< 20)
+        'best := ('points :== MAX('points)),
+        'lower := (student join grades extend('tp := 'points) where('points :< 'tp))
         )
-
+      PRINT
     )
   }
 }

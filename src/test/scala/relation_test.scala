@@ -79,7 +79,15 @@ class DSLTest extends UnitTest {
 
     C EXTEND('a := dee JOIN C)
 
-    (C EXTEND('A := RELATION('reid) &('id) &('id :+ 1) &('id :+ 2)))
+    assert((
+      C EXTEND(
+        'A := RELATION('reid) &('id) &('id :+ 1) &('id :+ 2)
+        )
+      WHERE(
+        COUNT('A) :== 3
+        )
+      PROJECT('id)
+    ) == C)
   }
 
   "min and max" should "do their work" in {
@@ -104,7 +112,7 @@ class DSLTest extends UnitTest {
           'minA := MIN('A),
           'count := COUNT()
         )
-        JOIN RELATION('dupID) & (0) & (1) // Duplicate entries
+        JOIN RELATION('dupID) &(0) &(1) // Duplicate entries
         WHERE (
           'C :== 'A,
           'D :== 'B,
@@ -113,7 +121,7 @@ class DSLTest extends UnitTest {
           'count :== COUNT(A),
           'count :== COUNT() :/ 2,
           COUNT() :/ 2 :== COUNT(A),
-          'dupID :== 0
+          'dupID :<> 1
         )
         PROJECT('C, 'D)
         RENAME('C as 'A, 'D as 'B)
