@@ -76,6 +76,8 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
 
   def addAndCheckConstraints(record: Seq[RelValue[_]]): Relation = {
     // TODO
+    if(record.length != arity)
+      throw new RuntimeException("Bad arity record")
     if(frozen) {
       records = records.clone()
       frozen = false

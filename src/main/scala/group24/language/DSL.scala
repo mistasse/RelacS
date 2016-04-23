@@ -1,6 +1,7 @@
 package group24.language
 
 import group24.library.{Relation => RRelation, _}
+import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
 /**
@@ -71,6 +72,7 @@ object RELATION {
   * )
   */
 class RELATION(val rel: RRelation) {
+  def toSet() = new PseudoMonadRelation(rel)
 
   /**
     * Static, preferred since more specific than Evaluated*
@@ -131,6 +133,14 @@ class RELATIONEval(val wrapped: Evaluated) {
   def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): Evaluated = wrapped extend(assignments:_*)
 }
 
+class SetToRelation(val set: Set[Seq[RelValue[_]]]) {
+  def toRelation(header: Symbol*): RRelation = {
+    val ret = new RRelation(header, mutable.HashSet[Seq[RelValue[_]]]())
+    this.set.foreach(ret.addAndCheckConstraints)
+    ret
+  }
+}
+
 trait RelEnv {
   implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment(HashMap.empty[Symbol, RelValue[_]], null))
 
@@ -148,12 +158,13 @@ trait RelEnv {
   // Notice: We had to have Evaluated's method in lowercase, because otherwise, there were conflicts implicit conversions
   // at the top level(Relation could either be caster to Evaluated or RELATION). This is a nice trick to allow the same
   // syntax!
-  implicit def Rel2Monad(rel: RRelation): PseudoMonadRelation = new PseudoMonadRelation(rel)
 
   // Obvious here!
   implicit def String2Evaluated(a: String): RelValueWrapper = new RelValueWrapper(StringValue(a))
   implicit def Int2Evaluated(a: Int): RelValueWrapper = new RelValueWrapper(IntValue(a))
   implicit def Boolean2Evaluated(a: Boolean): RelValueWrapper = new RelValueWrapper(BooleanValue(a))
+
+  implicit def SetSeqRelValues2Rel(a: Set[_ <: Seq[RelValue[_]]]): SetToRelation = new SetToRelation(a.asInstanceOf[Set[Seq[RelValue[_]]]])
 
   IntValue.ops("+")(classOf[IntValue]) = (a: Int, b: RelValue[_]) => {
     IntValue(a + b.asInstanceOf[IntValue].wrapped)
@@ -241,9 +252,6 @@ object main extends RelEnv {
         (1, 18) &
         (2, 20)
 
-    for(row <- students JOIN grades) {
-      println(row('name))
-    }
     (
       (students JOIN grades)
       PRINT()

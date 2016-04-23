@@ -84,7 +84,7 @@ class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Evaluated
 }
 
 class PseudoMonadRecord(val rel: RRelation, val array: Seq[RelValue[_]]) extends Seq[RelValue[_]] {
-  def apply(idx: Symbol): Any = array(rel.offsets(idx)).wrapped
+  def apply(idx: Symbol): RelValue[_] = array(rel.offsets(idx))
 
   override def length: Int = array.length
   override def apply(idx: Int): RelValue[_] = array(idx)
@@ -112,16 +112,21 @@ class PseudoMonadRecord(val rel: RRelation, val array: Seq[RelValue[_]]) extends
   }
 }
 
-class PseudoMonadRelation(val rel: RRelation) {
+class PseudoMonadRelation(val rel: RRelation) extends Set[PseudoMonadRecord] {
   val records = rel.records.map(new PseudoMonadRecord(rel, _))
-
-  def foreach(f: PseudoMonadRecord=>Unit): Unit = {
-    records.foreach(f)
-  }
 
   override def toString(): String = {
     rel.toString()
   }
+  override def contains(elem: PseudoMonadRecord): Boolean = ???
+  override def -(elem: PseudoMonadRecord): Set[PseudoMonadRecord] = ???
+  override def +(elem: PseudoMonadRecord): Set[PseudoMonadRecord] = {
+    val ret = rel.clone()
+    val mapping = rel.header.map(elem.rel.offsets(_))
+    ret.addAndCheckConstraints(mapping.map(elem(_)))
+    return new PseudoMonadRelation(ret)
+  }
+  override def iterator: Iterator[PseudoMonadRecord] = records.iterator
 }
 
 /**
