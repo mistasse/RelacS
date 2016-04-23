@@ -1,6 +1,6 @@
 package group24.language
 
-import group24.library.{RelationValue, Ref, RelValue}
+import group24.library.{Relation => RRelation, RelationValue, Ref, RelValue}
 
 /**
   * Created by mistasse on 11/04/16.
@@ -45,6 +45,7 @@ trait Evaluated extends Types.Evaluated {
   def &&(other: Evaluated): Evaluated = CE((env) => this(env) && other(env))
   def ||(other: Evaluated): Evaluated = CE((env) => this(env) || other(env))
   def join(other: Evaluated): Evaluated = CE((env) => this(env) join other(env))
+  def not_matching(other: Evaluated): Evaluated = CE((env) => this(env) not_matching other(env))
   def union(other: Evaluated): Evaluated = CE((env) => this(env) union other(env))
   def rename(renamings: (Symbol, Symbol)*): Evaluated = CE((env) => this(env) rename(renamings:_*))
   def project(keep: Symbol*): Evaluated = CE((env) => this(env) project(keep:_*))
@@ -80,6 +81,47 @@ class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Evaluated
   }
 
   def apply(env: Environment): RelValue[_] = env.hashMap(sym)
+}
+
+class PseudoMonadRecord(val rel: RRelation, val array: Seq[RelValue[_]]) extends Seq[RelValue[_]] {
+  def apply(idx: Symbol): Any = array(rel.offsets(idx)).wrapped
+
+  override def length: Int = array.length
+  override def apply(idx: Int): RelValue[_] = array(idx)
+  override def iterator: Iterator[RelValue[_]] = array.iterator
+  override def equals(other: Any): Boolean = {
+    if(!other.isInstanceOf[PseudoMonadRecord])
+      return false;
+    val that = other.asInstanceOf[PseudoMonadRecord]
+    if(rel.header.toSet != that.rel.header.toSet)
+      return false;
+    val mapping = rel.header.map(that.rel.offsets(_))
+    array equals mapping.map(that.array);
+  }
+  override def hashCode(): Int = {
+    array.hashCode()
+  }
+  override def toString(): String = {
+    val b = new StringBuilder("{")
+    for(i <- array.indices) {
+      if(i != 0)
+        b.append(", ")
+      b.append(rel.offsets(i).name).append(": ").append(array(i))
+    }
+    b.append("}").toString()
+  }
+}
+
+class PseudoMonadRelation(val rel: RRelation) {
+  val records = rel.records.map(new PseudoMonadRecord(rel, _))
+
+  def foreach(f: PseudoMonadRecord=>Unit): Unit = {
+    records.foreach(f)
+  }
+
+  override def toString(): String = {
+    rel.toString()
+  }
 }
 
 /**

@@ -109,6 +109,24 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     return ret
   }
 
+  def not_matching(other: Relation): Relation = {
+    val common = Set(this.header:_*).intersect(Set(other.header:_*))
+    val kept = (0 until other.arity).flatMap(i => if(common.contains(other.offsets(i))) None else Some(i))
+
+    val ret = new Relation(this.header:_*)
+
+    for(record_a <- this.records) {
+      if(other.records.forall(record_b => // If for every record,
+        !common.forall(h => // Not all of the attributes have same value
+          record_a(this.offsets(h)) equals record_b(other.offsets(h))
+        )
+      ))
+        ret.records.add(record_a)
+    }
+
+    return ret
+  }
+
   def union(other: Relation): Relation = {
     if(this.header.toSet != other.header.toSet)
       throw new RuntimeException("Union of two relations that don't have the same header")

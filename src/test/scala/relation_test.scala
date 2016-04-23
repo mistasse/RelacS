@@ -68,6 +68,15 @@ class DSLTest extends UnitTest {
     assert((B join dum) == (dum join B))
   }
 
+  "not_matching" should "work as contrary for join dum/dee" in {
+    assert((A not_matching B union(A join B project('A, 'B))) == A)
+
+    assert((A not_matching dum) == (dee join A))
+    assert((B not_matching dum) == (dee join B))
+    assert((A not_matching dee) == (dum join A))
+    assert((B not_matching dee) == (dum join B))
+  }
+
   "joins" should "be compliant with theory" in {
     assert((A join A) == A)
     assert((B join B) == B)

@@ -1,8 +1,6 @@
 package group24.language
 
 import group24.library.{Relation => RRelation, _}
-import Types._
-
 import scala.collection.mutable.HashMap
 
 /**
@@ -97,6 +95,7 @@ class RELATION(val rel: RRelation) {
   }
 
   def JOIN(other: RRelation): RRelation = rel.join(other)
+  def NOT_MATCHING(other: RRelation): RRelation = rel.not_matching(other)
   def UNION(other: RRelation): RRelation = rel.union(other)
   def RENAME(renamings: (Symbol, Symbol)*): RRelation = rel.rename(renamings:_*)
   def PROJECT(keep: Symbol*): RRelation = rel.project(keep:_*)
@@ -123,6 +122,7 @@ class RELATIONEval(val wrapped: Evaluated) {
   }
 
   def JOIN(other: Evaluated): Evaluated = wrapped join other
+  def NOT_MATCHING(other: Evaluated): Evaluated = wrapped not_matching other
   def UNION(other: Evaluated): Evaluated = wrapped union other
   def RENAME(renamings: (Symbol, Symbol)*): Evaluated = wrapped rename(renamings:_*)
   def PROJECT(keep: Symbol*): Evaluated = wrapped project(keep:_*)
@@ -148,6 +148,7 @@ trait RelEnv {
   // Notice: We had to have Evaluated's method in lowercase, because otherwise, there were conflicts implicit conversions
   // at the top level(Relation could either be caster to Evaluated or RELATION). This is a nice trick to allow the same
   // syntax!
+  implicit def Rel2Monad(rel: RRelation): PseudoMonadRelation = new PseudoMonadRelation(rel)
 
   // Obvious here!
   implicit def String2Evaluated(a: String): RelValueWrapper = new RelValueWrapper(StringValue(a))
@@ -231,15 +232,21 @@ object main extends RelEnv {
       RELATION('id, 'name, 'surname) &
         (0, "Maxime", "Istasse") &
         (1, "Jérôme", "Lemaire") &
-        (2, "Léonard", "Julémont") PROJECT('id, 'surname, 'name)
+        (2, "Léonard", "Julémont")
+        PROJECT('id, 'surname, 'name)
       )
     val grades =
       RELATION('id, 'points) &
         (0, 15) &
         (1, 18) &
         (2, 20)
+
+    for(row <- students JOIN grades) {
+      println(row('name))
+    }
     (
       (students JOIN grades)
+      PRINT()
       EXTEND (
         'best := ('points :== MAX('points)),
         'better_than := students join grades
@@ -252,17 +259,17 @@ object main extends RelEnv {
           project('surname, 'name)
           union RELATION('name, 'surname) & ("Prof", "The")  // Adding the Prof
         )
-      PRINT
-      /*UNION (
+      PRINT()
+      UNION (
         RELATION('id, 'name, 'surname, 'points) & // Adding the prof
           ("∞", "Prof", "The", "∞")
         EXTEND(
-          'best := true,
-          'better_than := students join grades project('surname, 'name), // Better than every student
-          'lower_than := students join grades join dum project('surname, 'name) // Nobody is better than him actually
+          'best := "more than that",
+          'better_than := students join grades project('surname, 'name) join dee, // Better than every student
+          'lower_than := students join grades project('surname, 'name) join dum // Nobody is better than him actually
           )
         )
-      PRINT*/
+      PRINT()
     )
   }
 }
