@@ -92,12 +92,12 @@ class RELATION(val rel: RRelation) {
 
     ret
   }
-  def withFilter(f: (PseudoMonadRecord)=>RelValue[_]): RRelation = {
+  def filter(f: (PseudoMonadRecord)=>RelValue[_]): RRelation = {
     val ret = new RRelation(rel.header:_*)
 
     val recordSet = toSet()
     for(record <- recordSet) {
-      if(f(record) == BooleanValue.TRUE)
+      if(f(record) equals BooleanValue.TRUE)
         ret.addAndCheckConstraints(record.array)
     }
 
@@ -299,6 +299,16 @@ object main extends RelEnv {
         RECORD('name, 'good)(r('name), r('points) == MAX(grades, 'points))
         )
     )
+
+      (
+        RELATION('rel) &
+          (RELATION('id, 'name) & (0, "Maxime")) &
+          (RELATION('id, 'name) & (0, "Jérôme"))
+        PRINT()
+        flatMap(r => r('rel).get[RRelation])
+        PRINT()
+      )
+
 
     println(for{
       s <- students

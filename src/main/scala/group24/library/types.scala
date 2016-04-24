@@ -8,6 +8,8 @@ import scala.collection.mutable
 
 
 abstract class RelValue[T](val wrapped: T) {
+  def get[T] = wrapped.asInstanceOf[T]
+
   def ==(other: RelValue[_]): RelValue[_] = {
     return BooleanValue(wrapped.equals(other.wrapped))
   }
