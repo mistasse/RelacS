@@ -6,6 +6,10 @@ import group24.library.{Relation => RRelation, BooleanValue, RelValue}
   * Created by mistasse on 24/04/16.
   */
 
+object RECORD {
+  def apply(header: Symbol*)(wrappers: RelValue[_]*) = new PseudoMonadRecord(header, wrappers)
+}
+
 class RelationToMonad(val rel: RRelation) {
   def toSet() = new PseudoMonadRelation(rel)
   def foreach[U](f: (PseudoMonadRecord)=>U) = toSet().foreach(f)

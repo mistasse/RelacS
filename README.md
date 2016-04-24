@@ -47,9 +47,9 @@ and renders the following:
 -----------
 ```
 
-. From this, it is possible to write the following request, merging those students with their respective grades:
-
 #### JOIN
+
+From this, it is possible to write the following request, merging those students with their respective grades:
 
 ```scala
 val grades = RELATION('id, 'grade) &
@@ -127,9 +127,9 @@ val evil = (students JOIN grades
 (
   students JOIN grades
   EXTEND(
-    'above := (evil where('grade :> 'otherg)
+    'above := (evil where('grade :< 'otherg)
                     rename('otherg as 'grade)),
-    'below := (evil where('grade :< 'otherg)
+    'below := (evil where('grade :> 'otherg)
                     rename('otherg as 'grade))
     )
   PRINT()
@@ -140,16 +140,16 @@ yielding awesome, yet meaningful ascii art:
 ===============================================
 |id|  name|grade|         above|         below|
 ===============================================
-| 0|Jérôme|   18|==============|  ============|
-|  |      |     ||  name|grade||  |name|grade||
-|  |      |     |==============|  ============|
-|  |      |     ||Maxime|   15||  ------------|
-|  |      |     |--------------|              |
-| 1|Maxime|   15|  ============|==============|
+| 0|Jérôme|   18|  ============|==============|
 |  |      |     |  |name|grade|||  name|grade||
 |  |      |     |  ============|==============|
-|  |      |     |  ------------||Jérôme|   18||
+|  |      |     |  ------------||Maxime|   15||
 |  |      |     |              |--------------|
+| 1|Maxime|   15|==============|  ============|
+|  |      |     ||  name|grade||  |name|grade||
+|  |      |     |==============|  ============|
+|  |      |     ||Jérôme|   18||  ------------|
+|  |      |     |--------------|              |
 -----------------------------------------------
 ```
 

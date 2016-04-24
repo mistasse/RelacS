@@ -63,10 +63,6 @@ object RELATION {
   }
 }
 
-object RECORD {
-  def apply(header: Symbol*)(wrappers: RelValue[_]*) = new PseudoMonadRecord(header, wrappers)
-}
-
 /**
   * Allows to use caps in the main parts of the program, or static parts of closures, and add records with &
   * E.G:
@@ -196,51 +192,11 @@ trait RelEnv {
   }
 }
 
-object COUNT {
-  def apply()(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.current_relation))
-  def apply(rel: Evaluated): Evaluated = CE((rec) => this(rel(rec).wrapped.asInstanceOf[RRelation]))
-  def apply(rel: RRelation): RelValue[_] = {
-    new IntValue(rel.size)
-  }
-}
-
-object MIN {
-  def apply(sym: Symbol)(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.current_relation, sym))
-  def apply(rel: Evaluated, sym: Symbol): Evaluated = CE((rec) => this(rel(rec).wrapped.asInstanceOf[RRelation], sym))
-  def apply(rel: RRelation, sym: Symbol): RelValue[_] = {
-    var min: Option[RelValue[_]] = None
-    for(record <- rel.records) {
-      val current = record(rel.offsets(sym))
-      if(min.isEmpty)
-        min = Some(current)
-      else if((current < min.get) equals BooleanValue.TRUE)
-        min = Some(current)
-    }
-    min.get
-  }
-}
-
-object MAX {
-  def apply(sym: Symbol)(implicit renv: Ref[Environment]): Evaluated = CE((rec) => this(renv.get.current_relation, sym))
-  def apply(rel: Evaluated, sym: Symbol): Evaluated = CE((rec) => this(rel(rec).wrapped.asInstanceOf[RRelation], sym))
-  def apply(rel: RRelation, sym: Symbol): RelValue[_] = {
-    var max: Option[RelValue[_]] = None
-    for(record <- rel.records) {
-      val current = record(rel.offsets(sym))
-      if(max.isEmpty)
-        max = Some(current)
-      else if((current > max.get) equals BooleanValue.TRUE)
-        max = Some(current)
-    }
-    max.get
-  }
-}
-
 object main extends RelEnv {
 
   def main(args: Array[String]) {
 
-  /*
+
     val students = RELATION('id, 'name) &
       (1, "Maxime") &
       (0, "Jérôme")
@@ -269,14 +225,14 @@ object main extends RelEnv {
     (
       students JOIN grades
       EXTEND(
-        'above := (evil where('grade :> 'otherg)
+        'above := (evil where('grade :< 'otherg)
                         rename('otherg as 'grade)),
-        'below := (evil where('grade :< 'otherg)
+        'below := (evil where('grade :> 'otherg)
                         rename('otherg as 'grade))
         )
       PRINT()
     )
-*/
+/*
     val students = (
       RELATION('id, 'name, 'surname) &
         (0, "Maxime", "Istasse") &
@@ -354,6 +310,6 @@ object main extends RelEnv {
           )
         )
       PRINT()
-    )
+    )*/
   }
 }
