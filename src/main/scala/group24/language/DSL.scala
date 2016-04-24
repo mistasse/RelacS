@@ -232,6 +232,15 @@ object main extends RelEnv {
         )
       PRINT()
     )
+
+    val jer = RELATION('id, 'name) & (0, "Jérôme")
+    val max = RELATION('id, 'name) & (1, "Maxime")
+    (RELATION('rel) &
+      (jer) &
+      (max)
+      flatMap(r => r('rel).get[RRelation])
+    ) PRINT()
+
 /*
     val students = (
       RELATION('id, 'name, 'surname) &

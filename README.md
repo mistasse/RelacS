@@ -1,6 +1,6 @@
 # RelacS - Relational databases using Scala
 
-#### Disclaimer: This project is an academical project. It has to be taken as a challenge to build a very expressive DSL from a very poor base library. This basically performances were not targeted, just expressivity, creativity, and Scala exploration.
+#### Disclaimer: This project is an academical project. It has been taken as a challenge to build an expressive DSL from a very poor base library. This basically means performances were not targeted, just expressivity, creativity, and Scala exploration.
 
 ## The (very) basic engine
 
@@ -106,17 +106,17 @@ val evil = students JOIN grades RENAME('grade as 'otherg)
 (
   students JOIN grades
   EXTEND(
-    'above := (evil WHERE('grade :> 'otherg)),
-    'below := (evil WHERE('grade :< 'otherg))
+    'above := (evil WHERE('grade :< 'otherg)),
+    'below := (evil WHERE('grade :> 'otherg))
     )
   PRINT()
 )
 ```
 With the ouput `Exception in thread "main" java.util.NoSuchElementException: key not found: 'grade`... Wait... What?! Not exactly what you expected I guess.
 
-Let us make it simple. The Scala compiler will see that semantically, it should be able to compute `evil WHERE('grade :> 'otherg)` as a static relation, and convert that relation to a closure that returns the latter that is then passed into a function that puts this value at the desired offset of the record (remember how extends work?). But what it doesn't know, is that it needs a dynamic scope in order to access the attribute `'grade`, since it refers to an attribute in `students JOIN grades`, not in `evil`. (it has been renamed!)
+Let us make it simple. The Scala compiler will see that semantically, it should be able to compute `evil WHERE('grade :> 'otherg)` as a static relation, and convert that relation to a closure that returns the it as-is. That closure is then passed into a function that puts its result at the desired offset of the record on evaluation (remember how extends work?). But what it doesn't know, is that it needs a dynamic scope in order to access the attribute `'grade`, since it refers to an attribute in `students JOIN grades`, not in `evil`. (it has been renamed!)
 
-In order to fix this, making the `WHERE` lowercase should work. It will tell the compiler it is not a static one, but one that will be embedded as a closure in the whole extension process as it is handled by the DSL. (it generates several layers of closures) The dynamic resolution works by finding the closest attribute with the specified name in the hierarchy. This is why we had to rename the `'grade` field of `evil`.
+In order to fix this, making the `WHERE` lowercase should work. It will tell the compiler it is not a static one, but one that will be embedded as a closure in the whole extension process as it is handled by the DSL. (it generates several layers of closures) The dynamic resolution works by finding the closest attribute with the specified name in the hierarchy. This is why we had to rename the `'grade` field of `evil`. If we had not, it would shadow the one of the record we are extending.
 
 As a rule of thumb, you can be sure that you'll never be wrong when putting lowercases within `WHERE` or `EXTEND` blocks. When working on a static relation, caps are preferred, or you might end up with something else than the type you expected. We will also discard the `'id` attribute in the embedded relations by projection on the other fields, because the name is enough for us:
 
@@ -163,16 +163,60 @@ It might be interesting for you to know how such thing works. The DSL allows us 
 
 The course the project has been written for also comprises some introduction to monads, and suggested to try to work with them. This is why some things have been implemented in order to make relations kind of monadic.
 
+Here are some sad news. First, our relations are not pure monads. Anything cannot be put into it. Since this is a 2-dimensional collection, with a distinct structure at the first and second levels (a set of records), we really had to distinguish them. So theoretically, our relation can be a monad, but the only type it can accept as contained is Record. Second, we could not make our records monads themselves. It would not be advantageous at all, but we added some syntactic sugar.
+
+There is also another uncertainty. When using for loops onto types that do not implement `map`, `filter`, or any of these. Will the compiler perform implicit conversions that could make it work? Here, the answer is hopefully **yes**.
+
+The idea that has been implemented is the following. Records have to contain their labels, this is what is implemented in *PseudoMonadRecord*. So you can access an attribute using `record('attr)`. Then, we needed a representation of our relations that would be sets of such records. This is the role of *PseudoMonadRelation*. Then, we implemented the monadic methods relying on those of the sets. We couldn't define an implicit conversion from Relation to this representation because of the other operators that would be ambiguous. So we have an intermediate class providing an access to `foreach`, `map`, ... only.
+
+The most basic example we could think of is
+```scala
+( // equivalent to students map(r => r) PRINT()
+  for {
+    r <- students
+  }
+    yield r
+) PRINT()
+```
+
+#### JOIN-like
+In fact, we can imitate a lot of the functions of library using this
+```scala
+for {
+  s <- students
+  g <- grades
+  if s('id) == g('id)
+} yield RECORD('id, 'name, 'grade)(s('id), s('name), g('grade))
+```
+
+```
+=================
+|id|  name|grade|
+=================
+| 0|Jérôme|   18|
+| 1|Maxime|   15|
+-----------------
+```
+
+#### UNION-like
+```scala
+val jer = RELATION('id, 'name) & (0, "Jérôme")
+val max = RELATION('id, 'name) & (1, "Maxime")
+(RELATION('rel) &
+  (jer) &
+  (max)
+  flatMap(r => r('rel).get[RRelation])
+) PRINT()
+```
+```
+===========
+|id|  name|
+===========
+| 1|Maxime|
+| 0|Jérôme|
+-----------
+```
+
 <!--
 TODO
 -->
-
----
-
----
-
----
-
----
-
----
