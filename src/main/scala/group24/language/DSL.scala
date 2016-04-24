@@ -2,7 +2,6 @@ package group24.language
 
 import group24.library.{Relation => RRelation, _}
 import scala.collection.mutable
-import scala.collection.mutable.HashMap
 
 /**
   * Created by mistasse on 6/04/16.
@@ -10,7 +9,7 @@ import scala.collection.mutable.HashMap
 
 class Assignment(val sym: Symbol, val clos: (Types.MutableRecord)=>Unit)
 
-class Environment(val hashMap: HashMap[Symbol, RelValue[_]], val current_relation: RRelation, val new_offsets: Offsets=null) {
+class Environment(val hashMap: mutable.HashMap[Symbol, RelValue[_]], val current_relation: RRelation, val new_offsets: Offsets=null) {
   def this(env: Environment, rel: RRelation) = this(env.hashMap.clone(), rel, null)
   def this(env: Environment, rel: RRelation, new_offsets: Offsets) = this(env.hashMap.clone(), rel, new_offsets)
 }
@@ -41,7 +40,7 @@ object RELATION {
       BooleanValue(bool.forall(fct => fct(env) equals BooleanValue.TRUE))
     })
     renv.set(parent_env)
-    return ret
+    ret
   }
 
   /**
@@ -60,7 +59,7 @@ object RELATION {
       fcts.foreach(fct => fct(rec))
     })
     renv.set(previous_env)
-    return ret
+    ret
   }
 }
 
@@ -76,53 +75,12 @@ object RECORD {
   * )
   */
 class RELATION(val rel: RRelation) {
-  def toSet() = new PseudoMonadRelation(rel)
-  def foreach[U](f: (PseudoMonadRecord)=>U) = toSet().foreach(f)
-  def map[B](f: (PseudoMonadRecord)=>PseudoMonadRecord) = {
-    val recordsSet = toSet().map(f)
-    var ret: RRelation = if(recordsSet.isEmpty) new RRelation() else null
-
-    for(record <- recordsSet) {
-      if(ret == null)
-        ret = new RRelation(record.header:_*)
-      if(ret.header != record.header)
-        throw new RuntimeException("map records with different headers is not allowed")
-      ret.addAndCheckConstraints(record.array)
-    }
-
-    ret
-  }
-  def filter(f: (PseudoMonadRecord)=>RelValue[_]): RRelation = {
-    val ret = new RRelation(rel.header:_*)
-
-    val recordSet = toSet()
-    for(record <- recordSet) {
-      if(f(record) equals BooleanValue.TRUE)
-        ret.addAndCheckConstraints(record.array)
-    }
-
-    return ret
-  }
-  def flatMap(f: (PseudoMonadRecord)=>RRelation) = {
-    val relationsSet = toSet().map(f)
-    var ret: RRelation = if(relationsSet.isEmpty) new RRelation() else null
-    for(relation <- relationsSet) {
-      if(ret == null)
-        ret = new RRelation(relation.header:_*)
-      if(relation.size > 0 && ret.header != relation.header)
-        throw new RuntimeException("flatMap with different headers is not allowed")
-      for(record <- relation.records)
-        ret.addAndCheckConstraints(record)
-    }
-    ret
-  }
-
   /**
     * Static, preferred since more specific than Evaluated*
     */
   def &(values: RelValueWrapper*): RRelation = {
     rel.addAndCheckConstraints(values.map(_.wrapped))
-    return rel
+    rel
   }
 
   /**
@@ -149,7 +107,7 @@ class RELATION(val rel: RRelation) {
   def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): RRelation = RELATION.EXTEND(rel, assignments:_*)
   def PRINT(): RRelation = {
     System.out.println(rel)
-    return rel
+    rel
   }
 }
 
@@ -177,7 +135,7 @@ class RELATIONEval(val wrapped: Evaluated) {
 }
 
 trait RelEnv {
-  implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment(HashMap.empty[Symbol, RelValue[_]], null))
+  implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment(mutable.HashMap.empty[Symbol, RelValue[_]], null))
 
   // Allows creating identifiers linked to the current Environment Reference for further evaluation
   implicit def Sym2Identifier(a: Symbol)(implicit renv: Ref[Environment]): Identifier = new Identifier(a)
@@ -185,7 +143,7 @@ trait RelEnv {
 
   // The trickiest part: Why only those? And all those ones?
   // 1) Here, we allow syntactic sugar
-  implicit def Rel2aRELATION(a: RRelation): RELATION = new RELATION(a)
+  implicit def Rel2RELATION(a: RRelation): RELATION = new RELATION(a)
   // 2) Within some blocks, we want to do EXTEND('x := RELATION(...))
   implicit def Rel2Evaluated(a: RRelation): RelValueWrapper = new RelValueWrapper(new RelationValue(a))
   // 3) Here, we allow the inner relations to accept more operators, ... while keeping the same syntax
@@ -194,15 +152,16 @@ trait RelEnv {
   // at the top level(Relation could either be caster to Evaluated or RELATION). This is a nice trick to allow the same
   // syntax!
 
-  // For monads
-  implicit def RelValue2RelValueWrapper(a: Option[Nothing]): RRelation = dum
-  implicit def RelValue2RelValueWrapper(a: RelValue[_]): RelValueWrapper = new RelValueWrapper(a)
-
   // Obvious here!
   implicit def String2Evaluated(a: String): RelValueWrapper = new RelValueWrapper(StringValue(a))
   implicit def Int2Evaluated(a: Int): RelValueWrapper = new RelValueWrapper(IntValue(a))
   implicit def Boolean2Evaluated(a: Boolean): RelValueWrapper = new RelValueWrapper(BooleanValue(a))
 
+  // For monads
+  implicit def Rel2Monad(a: RRelation): RelationToMonad = new RelationToMonad(a)
+  implicit def RelValue2RelValueWrapper(a: Option[Nothing]): RRelation = dum
+  implicit def RelValue2RelValueWrapper(a: RelValue[_]): RelValueWrapper = new RelValueWrapper(a)
+  // for if into monads
   implicit def RelBool2Boolean(a: RelValue[_]): Boolean = a.wrapped.asInstanceOf[Boolean]
 
   //implicit def SetSeqRelValues2Rel(a: Set[_ <: Seq[RelValue[_]]]): SetSeqToRelation = new SetSeqToRelation(a.asInstanceOf[Set[Seq[RelValue[_]]]])
@@ -281,6 +240,43 @@ object main extends RelEnv {
 
   def main(args: Array[String]) {
 
+  /*
+    val students = RELATION('id, 'name) &
+      (1, "Maxime") &
+      (0, "Jérôme")
+
+    students PRINT()
+
+    val grades = RELATION('id, 'grade) &
+      (0, 18) &
+      (1, 15)
+    students JOIN grades PRINT()
+
+    (
+      students JOIN grades
+      EXTEND(
+        'best := ('grade :== MAX('grade))
+        )
+      PRINT()
+      WHERE('best :== true)
+      PRINT()
+    )
+
+
+    val evil = (students JOIN grades
+                PROJECT('name, 'grade)
+                RENAME('grade as 'otherg))
+    (
+      students JOIN grades
+      EXTEND(
+        'above := (evil where('grade :> 'otherg)
+                        rename('otherg as 'grade)),
+        'below := (evil where('grade :< 'otherg)
+                        rename('otherg as 'grade))
+        )
+      PRINT()
+    )
+*/
     val students = (
       RELATION('id, 'name, 'surname) &
         (0, "Maxime", "Istasse") &
@@ -322,9 +318,15 @@ object main extends RelEnv {
           None
         else
           RELATION('name, 'good) &
-            (r('name), r('points).wrapped == 20)
+            (r('name), r('points).get[Int] == 20)
         )
     )
+
+    val rel = RELATION('id, 'name) &
+      (0, "Maxime") &
+      (1, "Jérôme")
+
+    rel PRINT()
 
     (
       (students JOIN grades)

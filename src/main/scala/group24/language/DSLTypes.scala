@@ -83,50 +83,6 @@ class Identifier(sym: Symbol)(implicit renv: Ref[Environment]) extends Evaluated
   def apply(env: Environment): RelValue[_] = env.hashMap(sym)
 }
 
-class PseudoMonadRecord(val header: Seq[Symbol], val array: Seq[RelValue[_]]) {
-  def apply(idx: Symbol): RelValue[_] = array(header.indexOf(idx))
-  def apply(idx: Int): RelValue[_] = array(idx)
-
-  override def equals(other: Any): Boolean = {
-    if(!other.isInstanceOf[PseudoMonadRecord])
-      return false;
-    val that = other.asInstanceOf[PseudoMonadRecord]
-    if(header.toSet != that.header.toSet)
-      return false;
-    val mapping = if(header == that.header) Range(0, header.length) else header.map(that.header.indexOf(_))
-    array equals mapping.map(that.array);
-  }
-  override def hashCode(): Int = {
-    array.hashCode()
-  }
-  override def toString(): String = {
-    val b = new StringBuilder("{")
-    for(i <- array.indices) {
-      if(i != 0)
-        b.append(", ")
-      b.append(header(i).name).append(": ").append(array(i))
-    }
-    b.append("}").toString()
-  }
-}
-
-class PseudoMonadRelation(val rel: RRelation) extends Set[PseudoMonadRecord] {
-  val records = rel.records.map(new PseudoMonadRecord(rel.header, _))
-
-  override def toString(): String = {
-    rel.toString()
-  }
-  override def contains(elem: PseudoMonadRecord): Boolean = ???
-  override def -(elem: PseudoMonadRecord): Set[PseudoMonadRecord] = ???
-  override def +(elem: PseudoMonadRecord): Set[PseudoMonadRecord] = {
-    val ret = rel.clone()
-    val mapping = rel.header.map(elem.header.indexOf(_))
-    ret.addAndCheckConstraints(mapping.map(elem(_)))
-    return new PseudoMonadRelation(ret)
-  }
-  override def iterator: Iterator[PseudoMonadRecord] = records.iterator
-}
-
 /**
   * Constants
   */
