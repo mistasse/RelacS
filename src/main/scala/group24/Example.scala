@@ -46,6 +46,14 @@ object Example {
         PRINT()
       )
 
+    (
+    for {
+      s <- students
+      g <- grades
+      if s('id) == g('id) && g('grade) > RInt(20)
+    } yield RECORD('id, 'name, 'grade)(s('id), s('name), g('grade))
+      ) PRINT()
+
     val jer = RELATION('id, 'name) & (0, "Jérôme")
     val max = RELATION('id, 'name) & (1, "Maxime")
     (RELATION('rel) &

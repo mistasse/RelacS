@@ -1,6 +1,6 @@
 package group24.language
 
-import group24.library.{Relation => RRelation, BooleanValue, RelValue}
+import group24.library.{Relation => RRelation, dum, BooleanValue, RelValue}
 
 /**
   * Created by mistasse on 24/04/16.
@@ -42,14 +42,18 @@ class RelationToMonad(val rel: RRelation) {
     val relationsSet = toSet().map(f)
     var ret: RRelation = if(relationsSet.isEmpty) new RRelation() else null
     for(relation <- relationsSet) {
-      if(ret == null)
+      println(relation)
+      if(ret == null && relation != dum)
         ret = new RRelation(relation.header:_*)
       if(relation.size > 0 && ret.header != relation.header)
         throw new RuntimeException("flatMap with different headers is not allowed")
       for(record <- relation.records)
         ret.addAndCheckConstraints(record)
     }
-    ret
+    if(ret == null)
+      dum
+    else
+      ret
   }
 }
 
@@ -59,12 +63,12 @@ class PseudoMonadRecord(val header: Seq[Symbol], val array: Seq[RelValue[_]]) {
 
   override def equals(other: Any): Boolean = {
     if(!other.isInstanceOf[PseudoMonadRecord])
-      return false;
+      return false
     val that = other.asInstanceOf[PseudoMonadRecord]
     if(header.toSet != that.header.toSet)
-      return false;
+      return false
     val mapping = if(header == that.header) Range(0, header.length) else header.map(that.header.indexOf(_))
-    array equals mapping.map(that.array);
+    array equals mapping.map(that.array)
   }
   override def hashCode(): Int = {
     array.hashCode()

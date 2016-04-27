@@ -132,11 +132,24 @@ class RELATIONEval(val wrapped: Evaluated) {
 
 object DSL {
   // Type definitions, useful to write monads
+
   type Rel = RRelation
   type RRel = RelationValue
+  object RRel {
+    def apply(v: Rel) = new RRel(v)
+  }
   type RInt = IntValue
+  object RInt {
+    def apply(v: Int) = new RInt(v)
+  }
   type RString = StringValue
+  object RString {
+    def apply(v: String) = new RString(v)
+  }
   type RBool = BooleanValue
+  object RBool {
+    def apply(v: Boolean) = new RBool(v)
+  }
 
   implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment(mutable.HashMap.empty[Symbol, RelValue[_]], null))
 
