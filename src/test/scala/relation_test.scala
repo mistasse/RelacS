@@ -3,10 +3,11 @@
   */
 
 import group24.language._
+import group24.language.DSL._
 import group24.library._
 import org.scalatest._
 
-class UnitTest extends FlatSpec with RelEnv
+class UnitTest extends FlatSpec
 
 class DSLTest extends UnitTest {
   it should "be equal" in {

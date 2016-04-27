@@ -224,9 +224,6 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
       header(i) = (" "*(max_width(i)-s.length))+s
     }
 
-    /**
-      *
-      */
     for((row, r) <- strings.zipWithIndex) {
       for((column, c) <- row.zipWithIndex) {
         for ((line, i) <- column.zipWithIndex) {
@@ -273,5 +270,5 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     }
     return true
   }
-
+  
 }

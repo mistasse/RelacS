@@ -2,7 +2,7 @@
 
 #### Disclaimer: This project is an academical project. It has been taken as a challenge to build an expressive DSL from a very poor base library. This basically means performances were not targeted, just expressivity, creativity, and Scala exploration.
 
-## The (very) basic engine
+## The (very) basic relational engine
 
 A Relation, in implementation terms, is a class formed by a header (an array of symbols) and a body (a set of records). Records are themselves arrays of RelValues, RelValues being wrappers for the values we accept in the relations. They define operators for working with them, and they can be overridden, just like with the Rel software.
 
@@ -12,7 +12,7 @@ The only types accepted to put into Relations are for now Integers, Booleans, St
 
 The following operators are accepted by RelValues: `+` `-` `/` `\*` `<` `<=` `>` `>=` `==` `<>` `&&` `||` `join` `union` `not_matching`.
 
-They can also be called on `rename((Symbol, Symbol)*)`, `project(Symbol*)`, `where(Seq[RelValue[_]]=>Boolean)` and `extend(Symbols*)(f: (Array[RelValue[_]])=>Unit)`.
+They can also be called on `rename((Symbol, Symbol)*)`, `project(Symbol*)`, `where(Seq[RelValue[_]]=>Boolean)` and `extend(Symbol*)(f: (Array[RelValue[_]])=>Unit)`.
 
 Note how it must be thought before being able to *extend* a relation, or to filter it with *where*. The positions of the attributes you want to modify must be computed by yourself, taking into account every transformation you could have applied on your first representation of the data. Hopefully, the positions are easy to determine. Also, thanks to the DSL, you won't have to ever do that.
 
@@ -182,7 +182,7 @@ The most basic example we could think of is
 #### JOIN-like
 In fact, we can imitate a lot of the functions of library using this
 ```scala
-for {
+for { // equivalent to students.flatMap(s => grades.filter(g => g('id) == s('id)).map(g => RECORD('id, 'name, 'grade)(s('id), s('name), g('grade))))
   s <- students
   g <- grades
   if s('id) == g('id)
@@ -205,7 +205,7 @@ val max = RELATION('id, 'name) & (1, "Maxime")
 (RELATION('rel) &
   (jer) &
   (max)
-  flatMap(r => r('rel).get[RRelation])
+  flatMap(r => r('rel).get[Rel])
 ) PRINT()
 ```
 ```
