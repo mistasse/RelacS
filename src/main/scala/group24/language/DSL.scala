@@ -133,6 +133,10 @@ class RELATIONEval(val wrapped: Evaluated) {
 object DSL {
   // Type definitions, useful to write monads
   type Rel = RRelation
+  type RRel = RelationValue
+  type RInt = IntValue
+  type RString = StringValue
+  type RBool = BooleanValue
 
   implicit val renv: Ref[Environment] = new ThreadSafeRef[Environment](new Environment(mutable.HashMap.empty[Symbol, RelValue[_]], null))
 
