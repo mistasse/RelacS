@@ -12,24 +12,35 @@ object Example {
 
     val students = RELATION('id, 'name) &
       (1, "Maxime") &
-      (0, "Jérôme")
+      (0, "Jérôme") &
+      (2, "Charles")
 
-    students PRINT()
+    // students PRINT()
 
     val grades = RELATION('id, 'grade) &
       (0, 18) &
-      (1, 15)
-    students JOIN grades PRINT()
+      (1, 15) &
+      (2, 15)
+    // students JOIN grades PRINT()
 
     (
       students JOIN grades
         EXTEND(
         'best := ('grade :== MAX('grade))
         )
-        PRINT()
+        //PRINT()
         WHERE('best :== true)
-        PRINT()
+        //PRINT()
       )
+
+    val courses = students JOIN grades
+    courses PRINT()
+    val seqsym = Seq('id,'name)
+    courses.group(seqsym,'test) PRINT()
+
+
+
+
 
 
     val evil = (students JOIN grades
@@ -43,7 +54,7 @@ object Example {
         'below := (evil where('grade :> 'otherg)
           rename('otherg as 'grade))
         )
-        PRINT()
+        //PRINT()
       )
 
     (
@@ -52,16 +63,18 @@ object Example {
       g <- grades
       if s('id) == g('id) && g('grade) > RInt(20)
     } yield RECORD('id, 'name, 'grade)(s('id), s('name), g('grade))
-      ) PRINT()
+      )// PRINT()
 
     val jer = RELATION('id, 'name) & (0, "Jérôme")
     val max = RELATION('id, 'name) & (1, "Maxime")
     (RELATION('rel) &
       (jer) &
       (max)
-      PRINT()
+     // PRINT()
       flatMap(r => r('rel).get[Rel])
-      ) PRINT()
+      ) //PRINT()
+
+
 
     /*
         val students = (

@@ -201,6 +201,46 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
     return ret
   }
 
+  /*
+  * Group
+  * @param selected
+  * @return
+  *
+   */
+
+  def group(selected: Seq[Symbol], attributName: Symbol): Relation = {
+
+    val headerRet = (this.header filter (!selected.contains(_))) ++ ArrayBuffer(attributName)
+    val kept = (0 until this.arity).flatMap(i => if (selected.contains(this.offsets(i))) None else Some(i))
+    val keptIn = (0 until this.arity).flatMap(i => if (selected.contains(this.offsets(i))) Some(i) else None)
+    val headerIn = this.header filter (selected.contains(_)) // inutile
+
+    val RelRet = new Relation(headerRet: _* )
+    var tmpmap:Map[Seq[RelValue[_]],Relation] = Map()
+
+    for(record <- this.records){
+      val external_attributs= kept.map(record(_))
+      if(tmpmap.contains(external_attributs)) {
+        tmpmap(external_attributs).records.add(keptIn.map(record(_)))
+      } else {
+        var relIn = new Relation(headerIn:_*)
+        relIn.records.add(keptIn.map(record(_)))
+        tmpmap += (external_attributs -> relIn)
+      }
+
+    }
+
+    tmpmap.keys.foreach { i =>
+      val RelIn = new RelationValue(tmpmap(i))
+      val new_record = i :+ RelIn
+      RelRet.addAndCheckConstraints(new_record)
+    }
+
+    return RelRet
+
+
+  }
+
   override def toString(): String = {
     val max_height = Array.ofDim[Int](size)
     val max_width = this.header.map(s => s.name.length).toArray
