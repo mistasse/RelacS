@@ -99,10 +99,9 @@ class RelationValue(wrapped: Relation) extends RelValue[Relation](wrapped) {
   override def union(other: RelValue[_]): RelValue[_] = {
     return new RelationValue(wrapped.union(other.asInstanceOf[RelValue[Relation]].wrapped))
   }
-  override def group(selected: Seq[Symbol], attributName: Symbol): RelValue[_] = {
-    return new RelationValue(wrapped.group(selected,attributName))
+  override def group(grouped: Seq[Symbol], as: Symbol): RelValue[_] = {
+    return new RelationValue(wrapped.group(grouped, as))
   }
-
 
 }
 

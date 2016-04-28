@@ -2,6 +2,7 @@ package group24.library
 
 import java.util.function.Supplier
 
+import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, HashSet, HashMap}
 
 /**
@@ -208,37 +209,28 @@ class Relation(val header: Seq[Symbol], val offsets: Offsets, var records: HashS
   *
    */
 
-  def group(selected: Seq[Symbol], attributName: Symbol): Relation = {
+  def group(grouped: Seq[Symbol], as: Symbol): Relation = {
+    val header = this.header.filter(!grouped.contains(_)) :+ as
+    val outerIndices = (0 until this.arity).filter(i => !grouped.contains(this.offsets(i)))
+    val groupedIndices = grouped.map(this.offsets(_))
+    val groupedHeader = groupedIndices.map(this.offsets(_))
 
-    val headerRet = (this.header filter (!selected.contains(_))) ++ ArrayBuffer(attributName)
-    val kept = (0 until this.arity).flatMap(i => if (selected.contains(this.offsets(i))) None else Some(i))
-    val keptIn = (0 until this.arity).flatMap(i => if (selected.contains(this.offsets(i))) Some(i) else None)
-    val headerIn = this.header filter (selected.contains(_)) // inutile
-
-    val RelRet = new Relation(headerRet: _* )
-    var tmpmap:Map[Seq[RelValue[_]],Relation] = Map()
+    val ret = new Relation(header:_*)
+    val encountered = mutable.HashMap[Seq[RelValue[_]],Relation]()
 
     for(record <- this.records){
-      val external_attributs= kept.map(record(_))
-      if(tmpmap.contains(external_attributs)) {
-        tmpmap(external_attributs).records.add(keptIn.map(record(_)))
+      val outerAttributes = outerIndices.map(record(_))
+      if(encountered.contains(outerAttributes)) {
+        encountered(outerAttributes).records.add(groupedIndices.map(record(_)))
       } else {
-        var relIn = new Relation(headerIn:_*)
-        relIn.records.add(keptIn.map(record(_)))
-        tmpmap += (external_attributs -> relIn)
+        val relIn = new Relation(groupedHeader:_*)
+        relIn.records.add(groupedIndices.map(record(_)))
+        encountered(outerAttributes) = relIn
+        ret.addAndCheckConstraints(outerAttributes :+ new RelationValue(relIn))
       }
-
     }
 
-    tmpmap.keys.foreach { i =>
-      val RelIn = new RelationValue(tmpmap(i))
-      val new_record = i :+ RelIn
-      RelRet.addAndCheckConstraints(new_record)
-    }
-
-    return RelRet
-
-
+    return ret
   }
 
   override def toString(): String = {

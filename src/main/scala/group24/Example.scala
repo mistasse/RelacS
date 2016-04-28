@@ -34,9 +34,9 @@ object Example {
       )
 
     val courses = students JOIN grades
-    courses PRINT()
-    val seqsym = Seq('id,'name)
-    courses.group(seqsym,'test) PRINT()
+    courses EXTEND (
+      'grouped := ('A join courses)
+      ) PRINT()
 
 
     courses GROUP(Seq('id,'name),'coucou) PRINT()

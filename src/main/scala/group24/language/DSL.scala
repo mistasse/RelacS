@@ -98,13 +98,21 @@ class RELATION(val rel: RRelation) {
   def UNION(other: RRelation): RRelation = rel.union(other)
   def RENAME(renamings: (Symbol, Symbol)*): RRelation = rel.rename(renamings:_*)
   def PROJECT(keep: Symbol*): RRelation = rel.project(keep:_*)
-  def GROUP(selected: Seq[Symbol],attributName: Symbol): RRelation = rel.group(selected,attributName)
+  def GROUP(grouped: Seq[Symbol],attributName: Symbol): RRelation = rel.group(grouped,attributName)
+  def GROUP(grouped: Symbol*) = new GroupingRELATION(rel, grouped)
   def WHERE(bool: Evaluated*)(implicit renv: Ref[Environment]): RRelation = RELATION.WHERE(rel, bool:_*)
   def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): RRelation = RELATION.EXTEND(rel, assignments:_*)
   def PRINT(): RRelation = {
     System.out.println(rel)
     rel
   }
+}
+
+class GroupingRELATION(rel: RRelation, grouped: Seq[Symbol]) {
+  def AS(as: Symbol) = rel.group(grouped, as)
+}
+class GroupingRELATIONEval(rel: Evaluated, grouped: Seq[Symbol]) {
+  def as(as: Symbol): Evaluated = rel.group(grouped, as)
 }
 
 /**
@@ -120,14 +128,15 @@ class RELATIONEval(val wrapped: Evaluated) {
     })
   }
 
-  def JOIN(other: Evaluated): Evaluated = wrapped join other
-  def NOT_MATCHING(other: Evaluated): Evaluated = wrapped not_matching other
-  def UNION(other: Evaluated): Evaluated = wrapped union other
-  def RENAME(renamings: (Symbol, Symbol)*): Evaluated = wrapped rename(renamings:_*)
-  def PROJECT(keep: Symbol*): Evaluated = wrapped project(keep:_*)
-  def GROUP(selected: Seq[Symbol],attributName: Symbol): Evaluated = wrapped group(selected,attributName)
-  def WHERE(bool: Evaluated*)(implicit renv: Ref[Environment]): Evaluated = wrapped where(bool:_*)
-  def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): Evaluated = wrapped extend(assignments:_*)
+  def join(other: Evaluated): Evaluated = wrapped join other
+  def not_matching(other: Evaluated): Evaluated = wrapped not_matching other
+  def union(other: Evaluated): Evaluated = wrapped union other
+  def rename(renamings: (Symbol, Symbol)*): Evaluated = wrapped rename(renamings:_*)
+  def project(keep: Symbol*): Evaluated = wrapped project(keep:_*)
+  def group(selected: Seq[Symbol],attributName: Symbol): Evaluated = wrapped group(selected,attributName)
+  def group(selected: Symbol*) = new GroupingRELATIONEval(wrapped, selected)
+  def where(bool: Evaluated*)(implicit renv: Ref[Environment]): Evaluated = wrapped where(bool:_*)
+  def extend(assignments: Assignment*)(implicit renv: Ref[Environment]): Evaluated = wrapped extend(assignments:_*)
 }
 
 object DSL {

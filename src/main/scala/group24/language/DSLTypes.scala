@@ -49,7 +49,8 @@ trait Evaluated extends Types.Evaluated {
   def union(other: Evaluated): Evaluated = CE((env) => this(env) union other(env))
   def rename(renamings: (Symbol, Symbol)*): Evaluated = CE((env) => this(env) rename(renamings:_*))
   def project(keep: Symbol*): Evaluated = CE((env) => this(env) project(keep:_*))
-  def group(selected: Seq[Symbol], attributName: Symbol): Evaluated = CE((env) => this(env)  group(selected, attributName))
+  def group(grouped: Seq[Symbol], as: Symbol): Evaluated = CE((env) => this(env) group(grouped, as))
+  def group(grouped: Symbol*) = new GroupingRELATIONEval(this, grouped)
   def where(conditions: Evaluated*)(implicit renv: Ref[Environment]): Evaluated = {
     CE((env) => {
       val rel = this(env).asInstanceOf[RelationValue].wrapped
