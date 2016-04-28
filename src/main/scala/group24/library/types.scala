@@ -72,6 +72,9 @@ abstract class RelValue[T](val wrapped: T) {
   def union(other: RelValue[_]): RelValue[_] = {
     throw new RuntimeException("union not implemented on "+getClass.getName)
   }
+  def group(selected: Seq[Symbol], attributName: Symbol): RelValue[_] = {
+    throw new RuntimeException("group not implemented on "+getClass.getName)
+  }
 
   override def toString(): String = wrapped.toString()
 
@@ -96,6 +99,11 @@ class RelationValue(wrapped: Relation) extends RelValue[Relation](wrapped) {
   override def union(other: RelValue[_]): RelValue[_] = {
     return new RelationValue(wrapped.union(other.asInstanceOf[RelValue[Relation]].wrapped))
   }
+  override def group(selected: Seq[Symbol], attributName: Symbol): RelValue[_] = {
+    return new RelationValue(wrapped.group(selected,attributName))
+  }
+
+
 }
 
 object ExtensibleValue {

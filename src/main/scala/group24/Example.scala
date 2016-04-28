@@ -39,6 +39,8 @@ object Example {
     courses.group(seqsym,'test) PRINT()
 
 
+    courses GROUP(Seq('id,'name),'coucou) PRINT()
+
 
 
 

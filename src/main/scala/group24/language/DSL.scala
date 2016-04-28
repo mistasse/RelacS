@@ -98,7 +98,7 @@ class RELATION(val rel: RRelation) {
   def UNION(other: RRelation): RRelation = rel.union(other)
   def RENAME(renamings: (Symbol, Symbol)*): RRelation = rel.rename(renamings:_*)
   def PROJECT(keep: Symbol*): RRelation = rel.project(keep:_*)
-
+  def GROUP(selected: Seq[Symbol],attributName: Symbol): RRelation = rel.group(selected,attributName)
   def WHERE(bool: Evaluated*)(implicit renv: Ref[Environment]): RRelation = RELATION.WHERE(rel, bool:_*)
   def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): RRelation = RELATION.EXTEND(rel, assignments:_*)
   def PRINT(): RRelation = {
@@ -125,7 +125,7 @@ class RELATIONEval(val wrapped: Evaluated) {
   def UNION(other: Evaluated): Evaluated = wrapped union other
   def RENAME(renamings: (Symbol, Symbol)*): Evaluated = wrapped rename(renamings:_*)
   def PROJECT(keep: Symbol*): Evaluated = wrapped project(keep:_*)
-
+  def GROUP(selected: Seq[Symbol],attributName: Symbol): Evaluated = wrapped group(selected,attributName)
   def WHERE(bool: Evaluated*)(implicit renv: Ref[Environment]): Evaluated = wrapped where(bool:_*)
   def EXTEND(assignments: Assignment*)(implicit renv: Ref[Environment]): Evaluated = wrapped extend(assignments:_*)
 }
