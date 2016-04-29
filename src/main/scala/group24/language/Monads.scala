@@ -42,7 +42,6 @@ class RelationToMonad(val rel: RRelation) {
     val relationsSet = toSet().map(f)
     var ret: RRelation = if(relationsSet.isEmpty) new RRelation() else null
     for(relation <- relationsSet) {
-      println(relation)
       if(ret == null && relation != dum)
         ret = new RRelation(relation.header:_*)
       if(relation.size > 0 && ret.header != relation.header)
