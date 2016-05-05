@@ -32,11 +32,17 @@ object Example {
     (
       students JOIN grades
         EXTEND(
-        'above := (others where('grade :< 'otherg)
-          rename('otherg as 'grade)),
-        'below := (others where('grade :> 'otherg)
-          rename('otherg as 'grade))
+          'above := (others where('grade :< 'otherg)
+            rename('otherg as 'grade)),
+          'below := (others where('grade :> 'otherg)
+            rename('otherg as 'grade))
         )
+      ) PRINT()
+
+    // Group ... as ...
+    (
+      students JOIN grades
+      GROUP ('id, 'name) AS 'students
       ) PRINT()
 
     // JOIN-like monads

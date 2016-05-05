@@ -12,7 +12,7 @@ The only types accepted to put into Relations are for now Integers, Booleans, St
 
 The following operators are accepted by RelValues: `+` `-` `/` `\*` `<` `<=` `>` `>=` `==` `<>` `&&` `||` `join` `union` `not_matching`.
 
-They can also be called on `rename((Symbol, Symbol)*)`, `project(Symbol*)`, `where(Seq[RelValue[_]]=>Boolean)` and `extend(Symbol*)(f: (Array[RelValue[_]])=>Unit)`.
+They can also be called on `rename((Symbol, Symbol)*)`, `project(Symbol*)`, `group(Seq[Symbol], Symbol)`, `where(Seq[RelValue[_]]=>Boolean)` and `extend(Symbol*)(f: (Array[RelValue[_]])=>Unit)`.
 
 Note how it must be thought before being able to *extend* a relation, or to filter it with *where*. The positions of the attributes you want to modify must be computed by yourself, taking into account every transformation you could have applied on your first representation of the data. Hopefully, the positions are easy to determine. Also, thanks to the DSL, you won't have to ever do that.
 
@@ -154,6 +154,33 @@ yielding awesome, yet meaningful ascii art:
 ```
 
 Then, only your imagination is the limit. Ok, as well as your lifetime with respect to your hardware and the quality of those very trivially implemented algorithms. (Given a certain amount of data, it might become interesting to optimize them)
+
+#### GROUP ... AS ...
+```scala
+(
+  students JOIN grades
+  GROUP ('id, 'name) AS 'students
+  PRINT()
+)
+```
+GROUP AS can be used to group several features inside one, as a sub-relation. It works similarly to the GROUP BY in SQL, except this is the complementary set of attributes that has to be passed as argument. (The ALL BUT feature could be very interesting here!) One student has been added in order to demonstrate it better.
+```
+====================
+|grade|    students|
+====================
+|   15|============|
+|     ||id|   name||
+|     |============|
+|     || 1| Maxime||
+|     || 2|Charles||
+|     |------------|
+|   18| ===========|
+|     | |id|  name||
+|     | ===========|
+|     | | 0|Jerome||
+|     | -----------|
+--------------------
+```
 
 #### Behind the dynamic scope
 
